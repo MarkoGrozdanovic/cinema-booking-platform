@@ -45,94 +45,33 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
         LocalDateTime now = LocalDateTime.now();
-        List<Long> screeningSeatIds = request.getScreeningSeatIds();
-        Set<Long> uniqueScreeningSeatIds = new LinkedHashSet<>(screeningSeatIds);
 
-        if (screeningSeatIds.size() != uniqueScreeningSeatIds.size()) {
-            throw new BusinessException(
-                    "Duplicate screening seat IDs are not allowed"
-            );
-        }
+        Set<Long> uniqueScreeningSeatIds = validateAndGetUniqueSeatIds(request.getScreeningSeatIds());
 
-        AppUser user = userRepository
-                .findByIdAndActiveTrueAndRole(
-                        request.getUserId(),
-                        AppRole.CUSTOMER
-                )
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Active customer with ID " + request.getUserId() + " was not found"
-                ));
+        AppUser user = findActiveCustomer(request.getUserId());
 
 
-        Screening screening = screeningRepository
-                .findById(request.getScreeningId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Screening with ID " + request.getScreeningId()
-                                + " was not found"
-                ));
+        Screening screening = findAndValidateScreening(
+                request.getScreeningId(),
+                now
+        );
 
-        if (screening.getStatus() != ScreeningStatus.SCHEDULED) {
-            throw new InvalidScreeningException(
-                    "Screening is not available for booking"
-            );
-        }
-
-        if (!screening.getStartTime().isAfter(now)) {
-            throw new InvalidScreeningException(
-                    "Cannot book seats for a screening that has already started"
-            );
-        }
-
-        List<ScreeningSeat> screeningSeats = screeningSeatRepository.findAllByIdsWithLock(uniqueScreeningSeatIds);
-
-        if (screeningSeats.size() != uniqueScreeningSeatIds.size()) {
-            throw new ResourceNotFoundException(
-                    "One or more selected screening seats do not exist"
-            );
-        }
-
-        for(ScreeningSeat seat: screeningSeats){
-
-            Long seatScreeningId = seat.getScreening().getId();
-
-            if (!Objects.equals(seatScreeningId, request.getScreeningId())) {
-                throw new InvalidSeatSelectionException(
-                        "Seat with ID " + seat.getId()
-                                + " does not belong to the requested screening"
+        List<ScreeningSeat> screeningSeats =
+                findAndValidateScreeningSeats(
+                        uniqueScreeningSeatIds,
+                        screening.getId()
                 );
-            }
 
-            if (seat.getStatus() != ScreeningSeatStatus.AVAILABLE) {
-                throw new SeatNotAvailableException(
-                        "Seat with ID " + seat.getId()
-                                + " is not available"
-                );
-            }
-        }
+        Booking booking = createPendingBooking(
+                user,
+                screening,
+                now
+        );
 
-        Booking booking = Booking.builder()
-                .user(user)
-                .screening(screening)
-                .status(BookingStatus.PENDING_PAYMENT)
-                .expiresAt(now.plusMinutes(AppConstants.BOOKING_HOLD_MINUTES))
-                .build();
-
-        for(ScreeningSeat seat: screeningSeats){
-            seat.setStatus(ScreeningSeatStatus.HELD);
-            seat.setReservedUntil(booking.getExpiresAt());
-            BookingItem bookingItem = new BookingItem();
-            bookingItem.setScreeningSeat(seat);
-            bookingItem.setPrice(seat.getPrice());
-            booking.addBookingItem(bookingItem);
-        }
-
-        BigDecimal total = BigDecimal.valueOf(0);
-
-        for(ScreeningSeat seat: screeningSeats){
-            total = total.add(seat.getPrice());
-        }
-
-        booking.setTotalPrice(total);
+        holdSeatsAndCreateBookingItems(
+                booking,
+                screeningSeats
+        );
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -169,6 +108,146 @@ public class BookingServiceImpl implements BookingService {
             }
         }
     }
+
+    private Set<Long> validateAndGetUniqueSeatIds(
+            List<Long> screeningSeatIds
+    ) {
+        Set<Long> uniqueSeatIds =
+                new LinkedHashSet<>(screeningSeatIds);
+
+        if (screeningSeatIds.size() != uniqueSeatIds.size()) {
+            throw new BusinessException(
+                    "Duplicate screening seat IDs are not allowed"
+            );
+        }
+
+        return uniqueSeatIds;
+    }
+
+    private AppUser findActiveCustomer(Long userId) {
+        return userRepository
+                .findByIdAndActiveTrueAndRole(
+                        userId,
+                        AppRole.CUSTOMER
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Active customer with ID "
+                                + userId
+                                + " was not found"
+                ));
+    }
+
+    private Screening findAndValidateScreening(
+            Long screeningId,
+            LocalDateTime now
+    ) {
+        Screening screening = screeningRepository
+                .findById(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Screening with ID "
+                                + screeningId
+                                + " was not found"
+                ));
+
+        if (screening.getStatus() != ScreeningStatus.SCHEDULED) {
+            throw new InvalidScreeningException(
+                    "Screening is not available for booking"
+            );
+        }
+
+        if (!screening.getStartTime().isAfter(now)) {
+            throw new InvalidScreeningException(
+                    "Cannot book seats for a screening that has already started"
+            );
+        }
+
+        return screening;
+    }
+
+    private List<ScreeningSeat> findAndValidateScreeningSeats(
+            Set<Long> seatIds,
+            Long screeningId
+    ) {
+        List<ScreeningSeat> screeningSeats =
+                screeningSeatRepository.findAllByIdsWithLock(seatIds);
+
+        if (screeningSeats.size() != seatIds.size()) {
+            throw new ResourceNotFoundException(
+                    "One or more selected screening seats do not exist"
+            );
+        }
+
+        for (ScreeningSeat screeningSeat : screeningSeats) {
+            validateScreeningSeat(screeningSeat, screeningId);
+        }
+
+        return screeningSeats;
+    }
+
+    private void validateScreeningSeat(
+            ScreeningSeat screeningSeat,
+            Long screeningId
+    ) {
+        Long seatScreeningId =
+                screeningSeat.getScreening().getId();
+
+        if (!Objects.equals(seatScreeningId, screeningId)) {
+            throw new InvalidSeatSelectionException(
+                    "Seat with ID "
+                            + screeningSeat.getId()
+                            + " does not belong to the requested screening"
+            );
+        }
+
+        if (screeningSeat.getStatus()
+                != ScreeningSeatStatus.AVAILABLE) {
+            throw new SeatNotAvailableException(
+                    "Seat with ID "
+                            + screeningSeat.getId()
+                            + " is not available"
+            );
+        }
+    }
+
+    private Booking createPendingBooking(
+            AppUser user,
+            Screening screening,
+            LocalDateTime now
+    ) {
+        return Booking.builder()
+                .user(user)
+                .screening(screening)
+                .status(BookingStatus.PENDING_PAYMENT)
+                .expiresAt(
+                        now.plusMinutes(
+                                AppConstants.BOOKING_HOLD_MINUTES
+                        )
+                )
+                .build();
+    }
+
+    private void holdSeatsAndCreateBookingItems(
+            Booking booking,
+            List<ScreeningSeat> screeningSeats
+    ) {
+        BigDecimal totalPrice = BigDecimal.ZERO;
+
+        for (ScreeningSeat screeningSeat : screeningSeats) {
+            screeningSeat.setStatus(ScreeningSeatStatus.HELD);
+            screeningSeat.setReservedUntil(booking.getExpiresAt());
+
+            BookingItem bookingItem = new BookingItem();
+            bookingItem.setScreeningSeat(screeningSeat);
+            bookingItem.setPrice(screeningSeat.getPrice());
+
+            booking.addBookingItem(bookingItem);
+
+            totalPrice = totalPrice.add(screeningSeat.getPrice());
+        }
+
+        booking.setTotalPrice(totalPrice);
+    }
+
 
     private BookingResponseDTO toBookingResponse(Booking booking){
         List<BookedSeatResponseDTO> selectedSeats =
