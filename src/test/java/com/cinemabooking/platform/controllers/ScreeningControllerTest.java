@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import com.cinemabooking.platform.model.AppUser;
+import com.cinemabooking.platform.model.enums.AppRole;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @WebMvcTest(ScreeningController.class)
 class ScreeningControllerTest {
@@ -59,6 +66,7 @@ class ScreeningControllerTest {
                 """;
 
         mockMvc.perform(post("/api/screenings")
+                        .with(authentication(adminAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -86,11 +94,67 @@ class ScreeningControllerTest {
             """;
 
         mockMvc.perform(post("/api/screenings")
+                        .with(authentication(adminAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
 
         verify(screeningService, never())
                 .createScreening(any(CreateScreeningRequestDTO.class));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenCustomerCreatesScreening()
+            throws Exception {
+
+        String requestBody = """
+            {
+                "movieId": 10,
+                "hallId": 20,
+                "startTime": "2099-08-20T20:00:00",
+                "basePrice": 800.00
+            }
+            """;
+
+        mockMvc.perform(post("/api/screenings")
+                        .with(authentication(customerAuthentication()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
+
+        verify(screeningService, never())
+                .createScreening(any(CreateScreeningRequestDTO.class));
+    }
+
+    private UsernamePasswordAuthenticationToken adminAuthentication() {
+        AppUser admin = new AppUser();
+        admin.setId(2L);
+        admin.setEmail("admin@cinema.com");
+        admin.setRole(AppRole.ADMIN);
+        admin.setActive(true);
+
+        return UsernamePasswordAuthenticationToken.authenticated(
+                admin,
+                null,
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_ADMIN")
+                )
+        );
+    }
+
+    private UsernamePasswordAuthenticationToken customerAuthentication() {
+        AppUser customer = new AppUser();
+        customer.setId(1L);
+        customer.setEmail("customer@cinema.com");
+        customer.setRole(AppRole.CUSTOMER);
+        customer.setActive(true);
+
+        return UsernamePasswordAuthenticationToken.authenticated(
+                customer,
+                null,
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_CUSTOMER")
+                )
+        );
     }
 }

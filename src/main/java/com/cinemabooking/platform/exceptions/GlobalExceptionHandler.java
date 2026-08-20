@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(
-            RuntimeException exception
+            BusinessException exception
     ) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 Map.of(
@@ -72,6 +72,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentials(
+            InvalidCredentialsException exception
+    ){
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                Map.of(
+                        "status",401,
+                        "message", exception.getMessage(),
+                        "timestamp", LocalDateTime.now()
+                )
+        );
     }
 
 }

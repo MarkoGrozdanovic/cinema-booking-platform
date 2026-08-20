@@ -43,12 +43,12 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDTO createBooking(CreateBookingRequestDTO request) {
+    public BookingResponseDTO createBooking(CreateBookingRequestDTO request, Long id) {
         LocalDateTime now = LocalDateTime.now();
 
         Set<Long> uniqueScreeningSeatIds = validateAndGetUniqueSeatIds(request.getScreeningSeatIds());
 
-        AppUser user = findActiveCustomer(request.getUserId());
+        AppUser user = findActiveCustomer(id);
 
 
         Screening screening = findAndValidateScreening(

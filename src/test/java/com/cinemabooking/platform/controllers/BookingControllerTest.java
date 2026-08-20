@@ -16,13 +16,19 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import com.cinemabooking.platform.model.AppUser;
+import com.cinemabooking.platform.model.enums.AppRole;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @WebMvcTest(BookingController.class)
 public class BookingControllerTest {
@@ -53,12 +59,12 @@ public class BookingControllerTest {
                 .build();
 
         when(bookingService.createBooking(
-                any(CreateBookingRequestDTO.class)
-        )).thenReturn(response);
+                any(CreateBookingRequestDTO.class),
+                eq(1L)))
+                .thenReturn(response);
 
         String requestBody = """
                 {
-                    "userId": 1,
                     "screeningId": 10,
                     "screeningSeatIds": [100, 101]
                 }
@@ -87,11 +93,70 @@ public class BookingControllerTest {
             """;
 
         mockMvc.perform(post("/api/bookings")
+                        .with(authentication(customerAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());
 
+        Long authenticatedUserId = 1L;
+
         verify(bookingService, never())
-                .createBooking(any(CreateBookingRequestDTO.class));
+                .createBooking(any(CreateBookingRequestDTO.class), authenticatedUserId);
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenAdminCreatesBooking()
+            throws Exception {
+
+        String requestBody = """
+            {
+                "screeningId": 10,
+                "screeningSeatIds": [100, 101]
+            }
+            """;
+
+        mockMvc.perform(post("/api/bookings")
+                        .with(authentication(adminAuthentication()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
+
+        verify(bookingService, never())
+                .createBooking(
+                        any(CreateBookingRequestDTO.class),
+                        anyLong()
+                );
+    }
+
+    private UsernamePasswordAuthenticationToken customerAuthentication() {
+        AppUser user = new AppUser();
+        user.setId(1L);
+        user.setEmail("marko@example.com");
+        user.setRole(AppRole.CUSTOMER);
+        user.setActive(true);
+
+        return UsernamePasswordAuthenticationToken.authenticated(
+                user,
+                null,
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_CUSTOMER")
+                )
+        );
+    }
+
+    private UsernamePasswordAuthenticationToken adminAuthentication() {
+        AppUser admin = new AppUser();
+        admin.setId(2L);
+        admin.setEmail("admin@cinema.com");
+        admin.setRole(AppRole.ADMIN);
+        admin.setActive(true);
+
+        return UsernamePasswordAuthenticationToken.authenticated(
+                admin,
+                null,
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_ADMIN")
+                )
+        );
     }
 }

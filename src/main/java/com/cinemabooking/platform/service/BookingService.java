@@ -5,7 +5,7 @@ import com.cinemabooking.platform.model.response.BookingResponseDTO;
 
 public interface BookingService {
 
-    BookingResponseDTO createBooking(CreateBookingRequestDTO request);
+    BookingResponseDTO createBooking(CreateBookingRequestDTO request, Long id);
     void expirePendingBookings();
 
 }

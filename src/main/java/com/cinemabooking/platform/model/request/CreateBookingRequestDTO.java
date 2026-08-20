@@ -16,9 +16,6 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateBookingRequestDTO {
 
-    @NotNull(message = "User ID is required")
-    private Long userId;
-
     @NotNull(message = "Screening ID is required")
     private Long screeningId;
 

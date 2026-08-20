@@ -45,11 +45,13 @@ public class BookingServiceImplTest {
     @Test
     void createBooking_shouldRejectDuplicateSeatIds() {
         CreateBookingRequestDTO request =
-                new CreateBookingRequestDTO(1L, 1L, List.of(5L, 5L));
+                new CreateBookingRequestDTO(1L, List.of(5L, 5L));
+
+        Long authenticatedUserId = 1L;
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -69,14 +71,16 @@ public class BookingServiceImplTest {
     @Test
     void createBooking_shouldRejectRequest_whenActiveCustomerDoesNotExist() {
         CreateBookingRequestDTO requestDTO =
-                new CreateBookingRequestDTO(1L, 1L, List.of(5L, 6L));
+                new CreateBookingRequestDTO(1L, List.of(5L, 6L));
+
+        Long authenticatedUserId = 1L;
 
         when(userRepository.findByIdAndActiveTrueAndRole(1L, AppRole.CUSTOMER))
                 .thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> bookingService.createBooking(requestDTO)
+                () -> bookingService.createBooking(requestDTO, authenticatedUserId)
         );
 
         assertEquals("Active customer with ID 1 was not found",
@@ -99,7 +103,6 @@ public class BookingServiceImplTest {
         // Arrange
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L, 6L)
                 );
@@ -115,10 +118,12 @@ public class BookingServiceImplTest {
         when(screeningRepository.findById(10L))
                 .thenReturn(Optional.empty());
 
+        Long authenticatedUserId = 1L;
+
         // Act
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -138,7 +143,6 @@ public class BookingServiceImplTest {
         // Arrange
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L, 6L)
                 );
@@ -159,10 +163,12 @@ public class BookingServiceImplTest {
         when(screeningRepository.findById(10L))
                 .thenReturn(Optional.of(screening));
 
+        Long authenticatedUserId = 1L;
+
         // Act
         InvalidScreeningException exception = assertThrows(
                 InvalidScreeningException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -182,7 +188,6 @@ public class BookingServiceImplTest {
         // Arrange
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L, 6L)
                 );
@@ -203,10 +208,12 @@ public class BookingServiceImplTest {
         when(screeningRepository.findById(10L))
                 .thenReturn(Optional.of(screening));
 
+        Long authenticatedUserId = 1L;
+
         // Act
         InvalidScreeningException exception = assertThrows(
                 InvalidScreeningException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -226,7 +233,6 @@ public class BookingServiceImplTest {
         // Arrange
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L, 6L)
                 );
@@ -254,10 +260,12 @@ public class BookingServiceImplTest {
                 Set.of(5L, 6L)
         )).thenReturn(List.of(existingSeat));
 
+        Long authenticatedUserId = 1L;
+
         // Act
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -274,7 +282,6 @@ public class BookingServiceImplTest {
         // Arrange
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L)
                 );
@@ -309,10 +316,12 @@ public class BookingServiceImplTest {
                 Set.of(5L)
         )).thenReturn(List.of(screeningSeat));
 
+        Long authenticatedUserId = 1L;
+
         // Act
         InvalidSeatSelectionException exception = assertThrows(
                 InvalidSeatSelectionException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         // Assert
@@ -328,7 +337,6 @@ public class BookingServiceImplTest {
     void createBooking_shouldRejectRequest_whenSeatIsNotAvailable() {
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L)
                 );
@@ -360,9 +368,11 @@ public class BookingServiceImplTest {
                 Set.of(5L)
         )).thenReturn(List.of(screeningSeat));
 
+        Long authenticatedUserId = 1L;
+
         SeatNotAvailableException exception = assertThrows(
                 SeatNotAvailableException.class,
-                () -> bookingService.createBooking(request)
+                () -> bookingService.createBooking(request, authenticatedUserId)
         );
 
         assertEquals(
@@ -377,7 +387,6 @@ public class BookingServiceImplTest {
     void createBooking_shouldCreateBooking_whenSeatsAreAvailable() {
         CreateBookingRequestDTO request =
                 new CreateBookingRequestDTO(
-                        1L,
                         10L,
                         List.of(5L, 6L)
                 );
@@ -443,8 +452,10 @@ public class BookingServiceImplTest {
         when(bookingRepository.save(any(Booking.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
+        Long authenticatedUserId = 1L;
+
         BookingResponseDTO response =
-                bookingService.createBooking(request);
+                bookingService.createBooking(request, authenticatedUserId);
 
         assertEquals(
                 BookingStatus.PENDING_PAYMENT,
