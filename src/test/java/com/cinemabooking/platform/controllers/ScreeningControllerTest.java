@@ -25,11 +25,25 @@ import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.enums.AppRole;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
+import com.cinemabooking.platform.config.SecurityConfig;
+import com.cinemabooking.platform.repositories.UserRepository;
+import com.cinemabooking.platform.security.JwtService;
+import com.cinemabooking.platform.security.RestSecurityExceptionHandler;
+import org.springframework.context.annotation.Import;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @WebMvcTest(ScreeningController.class)
+@Import({
+        SecurityConfig.class,
+        RestSecurityExceptionHandler.class
+})
 class ScreeningControllerTest {
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,6 +80,7 @@ class ScreeningControllerTest {
                 """;
 
         mockMvc.perform(post("/api/screenings")
+                        .with(authentication(adminAuthentication()))
                         .with(authentication(adminAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
@@ -117,6 +132,7 @@ class ScreeningControllerTest {
             """;
 
         mockMvc.perform(post("/api/screenings")
+                        .with(authentication(adminAuthentication()))
                         .with(authentication(customerAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))

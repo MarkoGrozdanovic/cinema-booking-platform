@@ -37,7 +37,7 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = request.getEmail().trim().toLowerCase(Locale.ROOT);
 
         if(userRepository.existsByEmailIgnoreCase(normalizedEmail)){
-            throw new BusinessException("A user with this email aready exist");
+            throw new BusinessException("A user with this email already exists");
         }
 
         AppUser user = new AppUser();

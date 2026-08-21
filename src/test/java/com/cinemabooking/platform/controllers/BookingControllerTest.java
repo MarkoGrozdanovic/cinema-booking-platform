@@ -17,20 +17,27 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+
 import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.enums.AppRole;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
+import com.cinemabooking.platform.config.SecurityConfig;
+import com.cinemabooking.platform.repositories.UserRepository;
+import com.cinemabooking.platform.security.JwtService;
+import com.cinemabooking.platform.security.RestSecurityExceptionHandler;
+import org.springframework.context.annotation.Import;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @WebMvcTest(BookingController.class)
+@Import({
+        SecurityConfig.class,
+        RestSecurityExceptionHandler.class
+})
 public class BookingControllerTest {
 
     @Autowired
@@ -38,6 +45,12 @@ public class BookingControllerTest {
 
     @MockitoBean
     private BookingService bookingService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void shouldCreateBooking() throws Exception{
@@ -71,6 +84,7 @@ public class BookingControllerTest {
                 """;
 
         mockMvc.perform(post("/api/bookings")
+                        .with(authentication(customerAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -84,15 +98,15 @@ public class BookingControllerTest {
     }
 
     @Test
-    void shouldReturnBadRequestWhenUserIdIsMissing() throws Exception {
+    void shouldReturnBadRequestWhenScreeningIdIsMissing() throws Exception {
         String requestBody = """
             {
-                "screeningId": 10,
                 "screeningSeatIds": [100, 101]
             }
             """;
 
         mockMvc.perform(post("/api/bookings")
+                        .with(authentication(customerAuthentication()))
                         .with(authentication(customerAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
@@ -100,8 +114,7 @@ public class BookingControllerTest {
 
         Long authenticatedUserId = 1L;
 
-        verify(bookingService, never())
-                .createBooking(any(CreateBookingRequestDTO.class), authenticatedUserId);
+        verifyNoInteractions(bookingService);
     }
 
     @Test
@@ -110,22 +123,18 @@ public class BookingControllerTest {
 
         String requestBody = """
             {
-                "screeningId": 10,
                 "screeningSeatIds": [100, 101]
             }
             """;
 
         mockMvc.perform(post("/api/bookings")
+                        .with(authentication(customerAuthentication()))
                         .with(authentication(adminAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isForbidden());
 
-        verify(bookingService, never())
-                .createBooking(
-                        any(CreateBookingRequestDTO.class),
-                        anyLong()
-                );
+        verifyNoInteractions(bookingService);
     }
 
     private UsernamePasswordAuthenticationToken customerAuthentication() {
