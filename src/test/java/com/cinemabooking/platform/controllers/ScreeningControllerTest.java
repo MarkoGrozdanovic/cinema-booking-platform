@@ -1,12 +1,25 @@
 package com.cinemabooking.platform.controllers;
 
+import com.cinemabooking.platform.config.SecurityConfig;
+import com.cinemabooking.platform.exceptions.ResourceNotFoundException;
+import com.cinemabooking.platform.model.AppUser;
+import com.cinemabooking.platform.model.enums.AppRole;
+import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
+import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
+import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
+import com.cinemabooking.platform.repositories.UserRepository;
+import com.cinemabooking.platform.security.JwtService;
+import com.cinemabooking.platform.security.RestSecurityExceptionHandler;
 import com.cinemabooking.platform.service.ScreeningSerivce;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -15,22 +28,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import com.cinemabooking.platform.model.AppUser;
-import com.cinemabooking.platform.model.enums.AppRole;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import com.cinemabooking.platform.config.SecurityConfig;
-import com.cinemabooking.platform.repositories.UserRepository;
-import com.cinemabooking.platform.security.JwtService;
-import com.cinemabooking.platform.security.RestSecurityExceptionHandler;
-import org.springframework.context.annotation.Import;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 @WebMvcTest(ScreeningController.class)
 @Import({
@@ -172,5 +175,74 @@ class ScreeningControllerTest {
                         new SimpleGrantedAuthority("ROLE_CUSTOMER")
                 )
         );
+    }
+
+    @Test
+    void shouldReturnScreeningSeatMap() throws Exception {
+        ScreeningSeatResponseDTO seat =
+                ScreeningSeatResponseDTO.builder()
+                        .screeningSeatId(10L)
+                        .rowLabel("A")
+                        .seatNumber(1)
+                        .seatType(SeatType.VIP)
+                        .price(new BigDecimal("1200.00"))
+                        .status(ScreeningSeatStatus.AVAILABLE)
+                        .reservedUntil(null)
+                        .build();
+
+        when(screeningService.getScreeningSeats(2L))
+                .thenReturn(List.of(seat));
+
+        mockMvc.perform(get("/api/screenings/2/seats")
+                        .with(authentication(
+                                customerAuthentication()
+                        )))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].screeningSeatId")
+                        .value(10))
+                .andExpect(jsonPath("$[0].rowLabel")
+                        .value("A"))
+                .andExpect(jsonPath("$[0].seatNumber")
+                        .value(1))
+                .andExpect(jsonPath("$[0].seatType")
+                        .value("VIP"))
+                .andExpect(jsonPath("$[0].price")
+                        .value(1200.00))
+                .andExpect(jsonPath("$[0].status")
+                        .value("AVAILABLE"));
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenSeatMapRequestHasNoAuthentication()
+            throws Exception {
+
+        mockMvc.perform(get("/api/screenings/2/seats"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message")
+                        .value("Authentication is required"));
+
+        verifyNoInteractions(screeningService);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenScreeningDoesNotExist()
+            throws Exception {
+
+        when(screeningService.getScreeningSeats(999L))
+                .thenThrow(
+                        new ResourceNotFoundException(
+                                "Screening with ID 999 was not found"
+                        )
+                );
+
+        mockMvc.perform(get("/api/screenings/999/seats")
+                        .with(authentication(
+                                customerAuthentication()
+                        )))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message")
+                        .value("Screening with ID 999 was not found"));
     }
 }

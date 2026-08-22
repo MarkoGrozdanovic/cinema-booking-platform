@@ -24,4 +24,15 @@ public interface ScreeningSeatRepository extends JpaRepository<ScreeningSeat, Lo
     List<ScreeningSeat> findAllByIdsWithLock(
             @Param("seatIds") Collection<Long> seatIds
     );
+
+    @Query("""
+        SELECT ss
+        FROM ScreeningSeat ss
+        JOIN FETCH ss.seat seat
+        WHERE ss.screening.id = :screeningId
+        ORDER BY seat.rowLabel ASC, seat.seatNumber ASC
+        """)
+    List<ScreeningSeat> findAllByScreeningId(
+            @Param("screeningId") Long screeningId
+    );
 }

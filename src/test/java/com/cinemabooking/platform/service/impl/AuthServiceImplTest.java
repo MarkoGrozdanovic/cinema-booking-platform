@@ -1,5 +1,7 @@
 package com.cinemabooking.platform.service.impl;
 
+import com.cinemabooking.platform.exceptions.BusinessException;
+import com.cinemabooking.platform.exceptions.InvalidCredentialsException;
 import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.enums.AppRole;
 import com.cinemabooking.platform.model.request.LoginRequestDTO;
@@ -14,19 +16,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.cinemabooking.platform.exceptions.BusinessException;
-import com.cinemabooking.platform.exceptions.InvalidCredentialsException;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class AuthServiceImplTest {

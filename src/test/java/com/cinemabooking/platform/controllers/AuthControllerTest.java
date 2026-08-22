@@ -1,7 +1,10 @@
 package com.cinemabooking.platform.controllers;
 
+import com.cinemabooking.platform.config.SecurityConfig;
 import com.cinemabooking.platform.model.enums.AppRole;
+import com.cinemabooking.platform.model.request.LoginRequestDTO;
 import com.cinemabooking.platform.model.request.RegisterRequestDTO;
+import com.cinemabooking.platform.model.response.AuthResponseDTO;
 import com.cinemabooking.platform.model.response.RegisteredUserResponseDTO;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.security.JwtService;
@@ -10,21 +13,16 @@ import com.cinemabooking.platform.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import com.cinemabooking.platform.config.SecurityConfig;
-import org.springframework.context.annotation.Import;
-import com.cinemabooking.platform.model.request.LoginRequestDTO;
-import com.cinemabooking.platform.model.response.AuthResponseDTO;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
 @WebMvcTest(AuthController.class)
 @Import({

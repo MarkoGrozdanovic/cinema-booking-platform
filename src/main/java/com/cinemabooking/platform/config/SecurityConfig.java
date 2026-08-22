@@ -55,6 +55,19 @@ public class SecurityConfig {
                                 )
                                 .hasRole("CUSTOMER")
 
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/bookings",
+                                        "/api/bookings/**"
+                                )
+                                .hasRole("CUSTOMER")
+
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/api/bookings/**"
+                                )
+                                .hasRole("CUSTOMER")
+
                                 .anyRequest()
                                 .authenticated()
                 )

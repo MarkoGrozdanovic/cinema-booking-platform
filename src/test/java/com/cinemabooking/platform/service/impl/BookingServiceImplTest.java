@@ -543,4 +543,298 @@ public class BookingServiceImplTest {
         assertNull(screeningSeat1.getReservedUntil());
         assertNull(screeningSeat2.getReservedUntil());
     }
+
+    @Test
+    void getBookingById_shouldReturnOwnedBooking() {
+        Cinema cinema = new Cinema();
+        cinema.setName("Central Cinema");
+
+        Hall hall = new Hall();
+        hall.setName("Hall 1");
+        hall.setCinema(cinema);
+
+        Movie movie = new Movie();
+        movie.setTitle("Interstellar");
+
+        Screening screening = new Screening();
+        screening.setMovie(movie);
+        screening.setHall(hall);
+        screening.setStartTime(
+                LocalDateTime.of(2026, 9, 1, 20, 0)
+        );
+
+        Seat seat = new Seat();
+        seat.setRowLabel("A");
+        seat.setSeatNumber(1);
+        seat.setSeatType(SeatType.STANDARD);
+
+        ScreeningSeat screeningSeat = new ScreeningSeat();
+        screeningSeat.setId(10L);
+        screeningSeat.setSeat(seat);
+
+        BookingItem bookingItem = new BookingItem();
+        bookingItem.setScreeningSeat(screeningSeat);
+        bookingItem.setPrice(new BigDecimal("800.00"));
+
+        Booking booking = Booking.builder()
+                .id(5L)
+                .bookingReference("BK-123")
+                .screening(screening)
+                .status(BookingStatus.PENDING_PAYMENT)
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .totalPrice(new BigDecimal("800.00"))
+                .build();
+
+        booking.addBookingItem(bookingItem);
+
+        when(bookingRepository.findByIdAndUserId(5L, 1L))
+                .thenReturn(Optional.of(booking));
+
+        BookingResponseDTO response =
+                bookingService.getBookingById(5L, 1L);
+
+        assertAll(
+                () -> assertEquals(5L, response.getId()),
+                () -> assertEquals(
+                        "BK-123",
+                        response.getBookingReference()
+                ),
+                () -> assertEquals(
+                        "Interstellar",
+                        response.getMovieTitle()
+                ),
+                () -> assertEquals(
+                        "Central Cinema",
+                        response.getCinemaName()
+                ),
+                () -> assertEquals(
+                        "Hall 1",
+                        response.getHallName()
+                ),
+                () -> assertEquals(
+                        new BigDecimal("800.00"),
+                        response.getTotalPrice()
+                ),
+                () -> assertEquals(
+                        1,
+                        response.getSelectedSeats().size()
+                )
+        );
+
+        verify(bookingRepository)
+                .findByIdAndUserId(5L, 1L);
+    }
+
+    @Test
+    void getBookingById_shouldThrowNotFoundWhenBookingIsNotOwned(){
+        Long bookingId = 5L;
+        Long userId = 1L;
+        when(bookingRepository.findByIdAndUserId(bookingId, userId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> bookingService.getBookingById(bookingId, userId)
+        );
+
+        assertEquals(
+                "Booking with ID " + bookingId + " was not found",
+                exception.getMessage()
+        );
+
+        verify(bookingRepository)
+                .findByIdAndUserId(bookingId, userId);
+    }
+
+    @Test
+    void cancelBooking_shouldCancelBookingAndReleaseHeldSeats(){
+        Long bookingId = 5L;
+        Long userId = 1L;
+
+        ScreeningSeat screeningSeat1 = new ScreeningSeat();
+        screeningSeat1.setStatus(ScreeningSeatStatus.HELD);
+        screeningSeat1.setReservedUntil(
+                LocalDateTime.now().minusMinutes(10)
+        );
+
+        Booking booking = new Booking();
+        booking.setStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setExpiresAt(
+                LocalDateTime.now().minusMinutes(1)
+        );
+
+        BookingItem item1 = new BookingItem();
+        item1.setScreeningSeat(screeningSeat1);
+
+        booking.addBookingItem(item1);
+
+        when(bookingRepository.findByIdAndUserId(bookingId, userId))
+                .thenReturn(Optional.of(booking));
+
+
+        bookingService.cancelBooking(bookingId, userId);
+
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+        assertEquals(ScreeningSeatStatus.AVAILABLE,
+                screeningSeat1.getStatus());
+        assertNull(screeningSeat1.getReservedUntil());
+
+        verify(bookingRepository)
+                .findByIdAndUserId(bookingId,userId);
+    }
+
+    @Test
+    void cancelBooking_shouldThrowNotFoundWhenBookingIsNotOwned(){
+        when(bookingRepository.findByIdAndUserId(5L, 1L))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> bookingService.cancelBooking(5L, 1L)
+        );
+
+        assertEquals(
+                "Booking with ID 5 was not found",
+                exception.getMessage()
+        );
+
+        verify(bookingRepository)
+                .findByIdAndUserId(5L, 1L);
+    }
+
+    @Test
+    void cancelBooking_shouldRejectBookingWithInvalidStatus(){
+        Booking booking = new Booking();
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        when(bookingRepository.findByIdAndUserId(5L, 1L))
+                .thenReturn(Optional.of(booking));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> bookingService.cancelBooking(5L, 1L)
+        );
+
+        assertEquals(
+                "Only pending payment bookings can be cancelled",
+                exception.getMessage()
+        );
+        assertEquals(
+                BookingStatus.CONFIRMED,
+                booking.getStatus()
+        );
+
+    }
+
+    @Test
+    void getAllBookings_shouldReturnCustomerBookings() {
+        Booking booking = createBookingForHistory();
+
+        when(bookingRepository
+                .findAllByUserIdOrderByCreatedAtDesc(1L))
+                .thenReturn(List.of(booking));
+
+        List<BookingResponseDTO> response =
+                bookingService.getAllBookings(1L);
+
+        assertEquals(1, response.size());
+
+        BookingResponseDTO returnedBooking = response.get(0);
+
+        assertAll(
+                () -> assertEquals(5L, returnedBooking.getId()),
+                () -> assertEquals(
+                        "BK-123",
+                        returnedBooking.getBookingReference()
+                ),
+                () -> assertEquals(
+                        "Interstellar",
+                        returnedBooking.getMovieTitle()
+                ),
+                () -> assertEquals(
+                        "Central Cinema",
+                        returnedBooking.getCinemaName()
+                ),
+                () -> assertEquals(
+                        "Hall 1",
+                        returnedBooking.getHallName()
+                ),
+                () -> assertEquals(
+                        BookingStatus.PENDING_PAYMENT,
+                        returnedBooking.getStatus()
+                ),
+                () -> assertEquals(
+                        new BigDecimal("800.00"),
+                        returnedBooking.getTotalPrice()
+                ),
+                () -> assertEquals(
+                        1,
+                        returnedBooking.getSelectedSeats().size()
+                )
+        );
+
+        verify(bookingRepository)
+                .findAllByUserIdOrderByCreatedAtDesc(1L);
+    }
+
+    @Test
+    void getAllBookings_shouldReturnEmptyListWhenCustomerHasNoBookings() {
+        when(bookingRepository
+                .findAllByUserIdOrderByCreatedAtDesc(1L))
+                .thenReturn(List.of());
+
+        List<BookingResponseDTO> response =
+                bookingService.getAllBookings(1L);
+
+        assertNotNull(response);
+        assertTrue(response.isEmpty());
+
+        verify(bookingRepository)
+                .findAllByUserIdOrderByCreatedAtDesc(1L);
+    }
+
+    private Booking createBookingForHistory() {
+        Cinema cinema = new Cinema();
+        cinema.setName("Central Cinema");
+
+        Hall hall = new Hall();
+        hall.setName("Hall 1");
+        hall.setCinema(cinema);
+
+        Movie movie = new Movie();
+        movie.setTitle("Interstellar");
+
+        Screening screening = new Screening();
+        screening.setMovie(movie);
+        screening.setHall(hall);
+        screening.setStartTime(
+                LocalDateTime.of(2026, 9, 1, 20, 0)
+        );
+
+        Seat seat = new Seat();
+        seat.setRowLabel("A");
+        seat.setSeatNumber(1);
+        seat.setSeatType(SeatType.STANDARD);
+
+        ScreeningSeat screeningSeat = new ScreeningSeat();
+        screeningSeat.setId(10L);
+        screeningSeat.setSeat(seat);
+
+        BookingItem bookingItem = new BookingItem();
+        bookingItem.setScreeningSeat(screeningSeat);
+        bookingItem.setPrice(new BigDecimal("800.00"));
+
+        Booking booking = Booking.builder()
+                .id(5L)
+                .bookingReference("BK-123")
+                .screening(screening)
+                .status(BookingStatus.PENDING_PAYMENT)
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .totalPrice(new BigDecimal("800.00"))
+                .build();
+
+        booking.addBookingItem(bookingItem);
+
+        return booking;
+    }
 }

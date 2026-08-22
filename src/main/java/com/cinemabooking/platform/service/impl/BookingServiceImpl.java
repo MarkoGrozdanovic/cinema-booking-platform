@@ -15,7 +15,7 @@ import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.service.BookingService;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -107,6 +107,59 @@ public class BookingServiceImpl implements BookingService {
                 }
             }
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getAllBookings(Long userId) {
+        return bookingRepository
+                .findAllByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::toBookingResponse)
+                .toList();
+
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDTO getBookingById(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findByIdAndUserId(bookingId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Booking with ID " + bookingId + " was not found"
+                ));
+        return toBookingResponse(booking);
+    }
+
+    @Override
+    @Transactional
+    public void cancelBooking(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findByIdAndUserId(bookingId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Booking with ID " + bookingId + " was not found"
+                ));
+
+        if (booking.getStatus() != BookingStatus.PENDING_PAYMENT) {
+            throw new BusinessException(
+                    "Only pending payment bookings can be cancelled"
+            );
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+
+        for (BookingItem bookingItem : booking.getBookingItems()) {
+            ScreeningSeat screeningSeat =
+                    bookingItem.getScreeningSeat();
+
+            if (screeningSeat.getStatus()
+                    == ScreeningSeatStatus.HELD) {
+
+                screeningSeat.setStatus(
+                        ScreeningSeatStatus.AVAILABLE
+                );
+                screeningSeat.setReservedUntil(null);
+            }
+        }
+
     }
 
     private Set<Long> validateAndGetUniqueSeatIds(

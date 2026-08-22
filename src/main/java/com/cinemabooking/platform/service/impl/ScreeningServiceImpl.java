@@ -8,12 +8,10 @@ import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
-import com.cinemabooking.platform.repositories.HallRepository;
-import com.cinemabooking.platform.repositories.MovieRepository;
-import com.cinemabooking.platform.repositories.ScreeningRepository;
-import com.cinemabooking.platform.repositories.SeatRepository;
+import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
+import com.cinemabooking.platform.repositories.*;
 import com.cinemabooking.platform.service.ScreeningSerivce;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,12 +25,14 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
     private final HallRepository hallRepository;
     private final SeatRepository seatRepository;
     private final ScreeningRepository screeningRepository;
+    private final ScreeningSeatRepository screeningSeatRepository;
 
-    public ScreeningServiceImpl(MovieRepository movieRepository, HallRepository hallRepository, SeatRepository seatRepository, ScreeningRepository screeningRepository) {
+    public ScreeningServiceImpl(MovieRepository movieRepository, HallRepository hallRepository, SeatRepository seatRepository, ScreeningRepository screeningRepository, ScreeningSeatRepository screeningSeatRepository) {
         this.movieRepository = movieRepository;
         this.hallRepository = hallRepository;
         this.seatRepository = seatRepository;
         this.screeningRepository = screeningRepository;
+        this.screeningSeatRepository = screeningSeatRepository;
     }
 
     @Override
@@ -136,5 +136,40 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
         }
 
         return hall;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScreeningSeatResponseDTO> getScreeningSeats(
+            Long screeningId
+    ) {
+        if (!screeningRepository.existsById(screeningId)) {
+            throw new ResourceNotFoundException(
+                    "Screening with ID " + screeningId
+                            + " was not found"
+            );
+        }
+
+        return screeningSeatRepository
+                .findAllByScreeningId(screeningId)
+                .stream()
+                .map(this::toScreeningSeatResponse)
+                .toList();
+    }
+
+    private ScreeningSeatResponseDTO toScreeningSeatResponse(
+            ScreeningSeat screeningSeat
+    ) {
+        Seat seat = screeningSeat.getSeat();
+
+        return ScreeningSeatResponseDTO.builder()
+                .screeningSeatId(screeningSeat.getId())
+                .rowLabel(seat.getRowLabel())
+                .seatNumber(seat.getSeatNumber())
+                .seatType(seat.getSeatType())
+                .price(screeningSeat.getPrice())
+                .status(screeningSeat.getStatus())
+                .reservedUntil(screeningSeat.getReservedUntil())
+                .build();
     }
 }

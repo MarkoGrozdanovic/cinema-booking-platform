@@ -1,7 +1,9 @@
 package com.cinemabooking.platform.repositories;
 
+import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.Booking;
 import com.cinemabooking.platform.model.enums.BookingStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +23,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findExpirePendingBookings(
             @Param("status") BookingStatus status,
             @Param("now") LocalDateTime now);
+
+    @EntityGraph(attributePaths = {
+            "bookingItems",
+            "bookingItems.screeningSeat",
+            "bookingItems.screeningSeat.seat",
+            "screening",
+            "screening.movie",
+            "screening.hall",
+            "screening.hall.cinema"
+    })
+    List<Booking> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @EntityGraph(attributePaths = {
+            "bookingItems",
+            "bookingItems.screeningSeat",
+            "bookingItems.screeningSeat.seat",
+            "screening",
+            "screening.movie",
+            "screening.hall",
+            "screening.hall.cinema"
+    })
+    Optional<Booking> findByIdAndUserId(Long bookingId, Long userId);
+
 }

@@ -1,40 +1,31 @@
 package com.cinemabooking.platform.service.impl;
 
 import com.cinemabooking.platform.config.AppConstants;
-import com.cinemabooking.platform.exceptions.BusinessException;
-import com.cinemabooking.platform.exceptions.HallHasNoActiveSeatsException;
-import com.cinemabooking.platform.exceptions.InactiveMovieException;
-import com.cinemabooking.platform.exceptions.ScreeningConflictException;
+import com.cinemabooking.platform.exceptions.*;
 import com.cinemabooking.platform.model.*;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
-import com.cinemabooking.platform.repositories.HallRepository;
-import com.cinemabooking.platform.repositories.MovieRepository;
-import com.cinemabooking.platform.repositories.ScreeningRepository;
-import com.cinemabooking.platform.repositories.SeatRepository;
+import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
+import com.cinemabooking.platform.repositories.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.List;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.ArgumentCaptor;
-
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ScreeningServiceImplTest {
@@ -50,6 +41,9 @@ class ScreeningServiceImplTest {
 
     @Mock
     private ScreeningRepository screeningRepository;
+
+    @Mock
+    private ScreeningSeatRepository screeningSeatRepository;
 
     @InjectMocks
     private ScreeningServiceImpl screeningService;
@@ -419,5 +413,79 @@ class ScreeningServiceImplTest {
                                         == ScreeningSeatStatus.AVAILABLE
                         )
         );
+    }
+
+    @Test
+    void getScreeningSeats_shouldReturnSeatMap() {
+        Seat seat = new Seat();
+        seat.setRowLabel("A");
+        seat.setSeatNumber(1);
+        seat.setSeatType(SeatType.VIP);
+
+        ScreeningSeat screeningSeat = new ScreeningSeat();
+        screeningSeat.setId(10L);
+        screeningSeat.setSeat(seat);
+        screeningSeat.setPrice(new BigDecimal("1200.00"));
+        screeningSeat.setStatus(
+                ScreeningSeatStatus.AVAILABLE
+        );
+
+        when(screeningRepository.existsById(2L))
+                .thenReturn(true);
+
+        when(screeningSeatRepository.findAllByScreeningId(2L))
+                .thenReturn(List.of(screeningSeat));
+
+        List<ScreeningSeatResponseDTO> response =
+                screeningService.getScreeningSeats(2L);
+
+        assertEquals(1, response.size());
+
+        ScreeningSeatResponseDTO returnedSeat = response.get(0);
+
+        assertAll(
+                () -> assertEquals(
+                        10L,
+                        returnedSeat.getScreeningSeatId()
+                ),
+                () -> assertEquals(
+                        "A",
+                        returnedSeat.getRowLabel()
+                ),
+                () -> assertEquals(
+                        1,
+                        returnedSeat.getSeatNumber()
+                ),
+                () -> assertEquals(
+                        SeatType.VIP,
+                        returnedSeat.getSeatType()
+                ),
+                () -> assertEquals(
+                        new BigDecimal("1200.00"),
+                        returnedSeat.getPrice()
+                ),
+                () -> assertEquals(
+                        ScreeningSeatStatus.AVAILABLE,
+                        returnedSeat.getStatus()
+                )
+        );
+    }
+
+    @Test
+    void getScreeningSeats_shouldThrowExceptionWhenScreeningDoesNotExist() {
+        when(screeningRepository.existsById(999L))
+                .thenReturn(false);
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> screeningService.getScreeningSeats(999L)
+        );
+
+        assertEquals(
+                "Screening with ID 999 was not found",
+                exception.getMessage()
+        );
+
+        verifyNoInteractions(screeningSeatRepository);
     }
 }
