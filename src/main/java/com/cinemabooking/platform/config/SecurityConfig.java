@@ -63,6 +63,16 @@ public class SecurityConfig {
                                 .hasRole("CUSTOMER")
 
                                 .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/payments/webhook"
+                                ).permitAll()
+
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/payments/payment-intents"
+                                ).hasRole("CUSTOMER")
+
+                                .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/bookings/**"
                                 )
