@@ -9,11 +9,14 @@ import java.util.List;
 public interface BookingService {
 
     BookingResponseDTO createBooking(CreateBookingRequestDTO request, Long id);
-    void expirePendingBookings();
 
     List<BookingResponseDTO> getAllBookings(Long id);
 
     BookingResponseDTO getBookingById(Long bookingId, Long id);
 
     void cancelBooking(Long bookingId, Long userid);
+
+    List<Long> findExpiredPendingBookingIds();
+
+    void expirePendingBooking(Long bookingId);
 }

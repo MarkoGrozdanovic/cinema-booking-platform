@@ -15,6 +15,7 @@ import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.service.BookingService;
+import com.cinemabooking.platform.service.PaymentService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +33,14 @@ public class BookingServiceImpl implements BookingService {
     private final ScreeningRepository screeningRepository;
     private final ScreeningSeatRepository screeningSeatRepository;
     private final BookingRepository bookingRepository;
+    private final PaymentService paymentService;
 
-    public BookingServiceImpl(UserRepository userRepository, ScreeningRepository screeningRepository, ScreeningSeatRepository screeningSeatRepository, BookingRepository bookingRepository) {
+    public BookingServiceImpl(UserRepository userRepository, ScreeningRepository screeningRepository, ScreeningSeatRepository screeningSeatRepository, BookingRepository bookingRepository, PaymentService paymentService) {
         this.userRepository = userRepository;
         this.screeningRepository = screeningRepository;
         this.screeningSeatRepository = screeningSeatRepository;
         this.bookingRepository = bookingRepository;
+        this.paymentService = paymentService;
     }
 
 
@@ -78,37 +81,6 @@ public class BookingServiceImpl implements BookingService {
         return toBookingResponse(savedBooking);
     }
 
-    @Transactional
-    @Override
-    public void expirePendingBookings() {
-        LocalDateTime now = LocalDateTime.now();
-
-        List<Booking> expiredBookings = bookingRepository
-                .findExpirePendingBookings(
-                        BookingStatus.PENDING_PAYMENT,
-                        now
-                );
-
-        for (Booking booking : expiredBookings) {
-            booking.setStatus(BookingStatus.EXPIRED);
-
-            for (BookingItem bookingItem : booking.getBookingItems()) {
-                ScreeningSeat screeningSeat =
-                        bookingItem.getScreeningSeat();
-
-                if (screeningSeat.getStatus() ==
-                        ScreeningSeatStatus.HELD) {
-
-                    screeningSeat.setStatus(
-                            ScreeningSeatStatus.AVAILABLE
-                    );
-
-                    screeningSeat.setReservedUntil(null);
-                }
-            }
-        }
-    }
-
     @Override
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAllBookings(Long userId) {
@@ -144,22 +116,62 @@ public class BookingServiceImpl implements BookingService {
             );
         }
 
+        paymentService.cancelOpenPaymentForBooking(booking.getId());
+
         booking.setStatus(BookingStatus.CANCELLED);
 
+        releaseHeldSeats(booking);
+
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredPendingBookingIds() {
+        return bookingRepository.findExpiredPendingBookingIds(
+                BookingStatus.PENDING_PAYMENT,
+                LocalDateTime.now()
+        );
+    }
+
+    @Override
+    @Transactional
+    public void expirePendingBooking(Long bookingId) {
+        Booking booking = bookingRepository
+                .findByIdWithLock(bookingId)
+                .orElse(null);
+
+        if (booking == null) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (booking.getStatus() != BookingStatus.PENDING_PAYMENT
+                || booking.getExpiresAt().isAfter(now)) {
+            return;
+        }
+
+        paymentService.cancelExpiredBookingPayment(
+                booking.getId()
+        );
+
+        booking.setStatus(BookingStatus.EXPIRED);
+        releaseHeldSeats(booking);
+    }
+
+    private void releaseHeldSeats(Booking booking) {
         for (BookingItem bookingItem : booking.getBookingItems()) {
             ScreeningSeat screeningSeat =
                     bookingItem.getScreeningSeat();
 
             if (screeningSeat.getStatus()
                     == ScreeningSeatStatus.HELD) {
-
                 screeningSeat.setStatus(
                         ScreeningSeatStatus.AVAILABLE
                 );
                 screeningSeat.setReservedUntil(null);
             }
         }
-
     }
 
     private Set<Long> validateAndGetUniqueSeatIds(

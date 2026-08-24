@@ -29,6 +29,7 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.model.StripeObject;
 import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
+import com.stripe.param.PaymentIntentCancelParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -136,6 +137,80 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    @Override
+    @Transactional
+    public void cancelOpenPaymentForBooking(Long bookingId) {
+        cancelPaymentForBooking(
+                bookingId,
+                PaymentIntentCancelParams
+                        .CancellationReason
+                        .REQUESTED_BY_CUSTOMER
+        );
+    }
+
+    @Override
+    @Transactional
+    public void cancelExpiredBookingPayment(Long bookingId) {
+        cancelPaymentForBooking(
+                bookingId,
+                PaymentIntentCancelParams
+                        .CancellationReason
+                        .ABANDONED
+        );
+    }
+
+    private void cancelPaymentForBooking(
+            Long bookingId,
+            PaymentIntentCancelParams.CancellationReason reason
+    ) {
+        Payment payment = paymentRepository
+                .findByBookingId(bookingId)
+                .orElse(null);
+
+        if (payment == null) {
+            return;
+        }
+
+        if (payment.getStatus() == PaymentStatus.SUCCEEDED
+                || payment.getStatus() == PaymentStatus.CANCELLED) {
+            return;
+        }
+
+        cancelStripePaymentIntent(payment, reason);
+
+        payment.setStatus(PaymentStatus.CANCELLED);
+    }
+
+    private void cancelStripePaymentIntent(
+            Payment payment,
+            PaymentIntentCancelParams.CancellationReason reason
+    ) {
+        PaymentIntentCancelParams params =
+                PaymentIntentCancelParams.builder()
+                        .setCancellationReason(reason)
+                        .build();
+
+        try {
+            stripeClient
+                    .v1()
+                    .paymentIntents()
+                    .cancel(
+                            payment.getProviderPaymentId(),
+                            params
+                    );
+        } catch (StripeException exception) {
+            log.error(
+                    "Failed to cancel Stripe Payment Intent: providerPaymentId={}",
+                    payment.getProviderPaymentId(),
+                    exception
+            );
+
+            throw new BusinessException(
+                    "Unable to cancel the payment"
+            );
+        }
+    }
+
     private void handleCanceledPayment(
             PaymentIntent stripePaymentIntent
     ) {
@@ -178,7 +253,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    private void handleFailedPayment(
+    private void  handleFailedPayment(
             PaymentIntent stripePaymentIntent
     ) {
         Payment payment = paymentRepository

@@ -9,6 +9,7 @@ import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
 import com.cinemabooking.platform.repositories.UserRepository;
+import com.cinemabooking.platform.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +39,9 @@ public class BookingServiceImplTest {
 
     @Mock
     private BookingRepository bookingRepository;
+
+    @Mock
+    private PaymentService paymentService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
@@ -490,7 +494,8 @@ public class BookingServiceImplTest {
     }
 
     @Test
-    void expirePendingBookings_shouldExpireBookingAndReleaseHeldSeats() {
+    void expirePendingBooking_shouldExpireBookingAndReleaseHeldSeats() {
+        Long bookingId = 5L;
         ScreeningSeat screeningSeat1 = new ScreeningSeat();
         screeningSeat1.setStatus(ScreeningSeatStatus.HELD);
         screeningSeat1.setReservedUntil(
@@ -504,6 +509,7 @@ public class BookingServiceImplTest {
         );
 
         Booking booking = new Booking();
+        booking.setId(bookingId);
         booking.setStatus(BookingStatus.PENDING_PAYMENT);
         booking.setExpiresAt(
                 LocalDateTime.now().minusMinutes(1)
@@ -518,12 +524,10 @@ public class BookingServiceImplTest {
         booking.addBookingItem(item1);
         booking.addBookingItem(item2);
 
-        when(bookingRepository.findExpirePendingBookings(
-                eq(BookingStatus.PENDING_PAYMENT),
-                any(LocalDateTime.class)
-        )).thenReturn(List.of(booking));
+        when(bookingRepository.findByIdWithLock(bookingId))
+                .thenReturn(Optional.of(booking));
 
-        bookingService.expirePendingBookings();
+        bookingService.expirePendingBooking(bookingId);
 
         assertEquals(
                 BookingStatus.EXPIRED,
@@ -542,6 +546,68 @@ public class BookingServiceImplTest {
 
         assertNull(screeningSeat1.getReservedUntil());
         assertNull(screeningSeat2.getReservedUntil());
+
+        verify(paymentService)
+                .cancelExpiredBookingPayment(bookingId);
+        verify(bookingRepository).findByIdWithLock(bookingId);
+    }
+
+    @Test
+    void findExpiredPendingBookingIds_shouldReturnRepositoryResult() {
+        when(bookingRepository.findExpiredPendingBookingIds(
+                eq(BookingStatus.PENDING_PAYMENT),
+                any(LocalDateTime.class)
+        )).thenReturn(List.of(4L, 7L));
+
+        List<Long> result = bookingService.findExpiredPendingBookingIds();
+
+        assertEquals(List.of(4L, 7L), result);
+        verify(bookingRepository).findExpiredPendingBookingIds(
+                eq(BookingStatus.PENDING_PAYMENT),
+                any(LocalDateTime.class)
+        );
+    }
+
+    @Test
+    void expirePendingBooking_shouldDoNothingWhenBookingNoLongerExists() {
+        when(bookingRepository.findByIdWithLock(5L))
+                .thenReturn(Optional.empty());
+
+        bookingService.expirePendingBooking(5L);
+
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void expirePendingBooking_shouldDoNothingWhenBookingIsNotPending() {
+        Booking booking = new Booking();
+        booking.setId(5L);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+
+        when(bookingRepository.findByIdWithLock(5L))
+                .thenReturn(Optional.of(booking));
+
+        bookingService.expirePendingBooking(5L);
+
+        assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void expirePendingBooking_shouldDoNothingWhenBookingHasNotExpired() {
+        Booking booking = new Booking();
+        booking.setId(5L);
+        booking.setStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+
+        when(bookingRepository.findByIdWithLock(5L))
+                .thenReturn(Optional.of(booking));
+
+        bookingService.expirePendingBooking(5L);
+
+        assertEquals(BookingStatus.PENDING_PAYMENT, booking.getStatus());
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -662,6 +728,8 @@ public class BookingServiceImplTest {
         booking.setExpiresAt(
                 LocalDateTime.now().minusMinutes(1)
         );
+        booking.setId(bookingId);
+        booking.setStatus(BookingStatus.PENDING_PAYMENT);
 
         BookingItem item1 = new BookingItem();
         item1.setScreeningSeat(screeningSeat1);
@@ -681,6 +749,8 @@ public class BookingServiceImplTest {
 
         verify(bookingRepository)
                 .findByIdAndUserId(bookingId,userId);
+        verify(paymentService)
+                .cancelOpenPaymentForBooking(bookingId);
     }
 
     @Test

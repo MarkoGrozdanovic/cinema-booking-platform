@@ -12,4 +12,8 @@ public interface PaymentService {
             String payload,
             String signature
     );
+
+    void cancelOpenPaymentForBooking(Long bookingId);
+
+    void cancelExpiredBookingPayment(Long bookingId);
 }
