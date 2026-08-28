@@ -3,6 +3,7 @@ package com.cinemabooking.platform.controllers;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
 import com.cinemabooking.platform.service.BookingService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
 
+@Tag(
+        name = "Bookings",
+        description = "Booking creation, history, details and cancellation"
+)
 @RestController
 @RequestMapping("/api")
 public class BookingController {

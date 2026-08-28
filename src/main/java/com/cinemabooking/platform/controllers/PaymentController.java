@@ -4,6 +4,8 @@ import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
 import com.cinemabooking.platform.service.PaymentService;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(
+        name = "Payments",
+        description = "Stripe Payment Intent operations"
+)
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
@@ -34,6 +40,7 @@ public class PaymentController {
                 .body(response);
     }
 
+    @Hidden
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleStripeWebhook(
             @RequestBody String payload,

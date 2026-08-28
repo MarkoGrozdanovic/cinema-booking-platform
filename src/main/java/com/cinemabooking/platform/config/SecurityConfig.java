@@ -43,7 +43,10 @@ public class SecurityConfig {
                         .authenticationEntryPoint(securityExceptionHandler)
                         .accessDeniedHandler(securityExceptionHandler))
                 .authorizeHttpRequests(authorize ->
-                        authorize.requestMatchers("/api/auth/**")
+                        authorize.requestMatchers("/api/auth/**",
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/v3/api-docs/**")
                                 .permitAll()
                                 .requestMatchers(HttpMethod.POST,
                                         "/api/screenings")
