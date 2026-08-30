@@ -1,0 +1,15 @@
+target/
+.git/
+.github/
+.idea/
+*.iml
+
+.env
+.env.*
+application-local.properties
+
+*.log
+logs/
+
+README.md
+HELP.md
