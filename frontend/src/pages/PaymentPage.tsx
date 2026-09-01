@@ -98,7 +98,7 @@ function PaymentPage() {
             },
           }}
         >
-          <PaymentForm />
+          <PaymentForm bookingId={Number(bookingId)} />
         </Elements>
       </div>
     </section>
