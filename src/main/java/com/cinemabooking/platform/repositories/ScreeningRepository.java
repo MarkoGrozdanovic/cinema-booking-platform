@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface ScreeningRepository extends JpaRepository<Screening, Long> {
@@ -21,4 +22,14 @@ public interface ScreeningRepository extends JpaRepository<Screening, Long> {
                                        @Param("hallId") Long hallId,
                                        @Param("excludedStatus") ScreeningStatus excludedStatus);
 
+
+    @Query("""
+        SELECT s
+        FROM Screening s
+        WHERE s.startTime > :now
+        ORDER BY s.startTime ASC
+        """)
+    List<Screening> findUpcomingScreenings(
+            @Param("now") LocalDateTime now
+    );
 }

@@ -61,6 +61,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         validateBookingForPayment(booking);
 
+        Payment existingPayment = paymentRepository
+                .findByBookingId(booking.getId())
+                .orElse(null);
+
+        if (existingPayment != null) {
+            return reuseExistingPayment(existingPayment);
+        }
+
         PaymentIntentCreateParams params =
                 buildPaymentIntentParams(
                         booking,
@@ -440,12 +448,6 @@ public class PaymentServiceImpl implements PaymentService {
                     "Booking has expired"
             );
         }
-
-        if (paymentRepository.existsByBookingId(booking.getId())) {
-            throw new BusinessException(
-                    "A payment already exists for this booking"
-            );
-        }
     }
 
     private PaymentIntentCreateParams buildPaymentIntentParams(
@@ -544,5 +546,70 @@ public class PaymentServiceImpl implements PaymentService {
                 .amount(payment.getAmount())
                 .currency(payment.getCurrency())
                 .build();
+    }
+
+    private PaymentIntentResponseDTO reuseExistingPayment(
+            Payment payment
+    ) {
+        if (payment.getStatus() == PaymentStatus.SUCCEEDED) {
+            throw new BusinessException(
+                    "Payment has already been completed"
+            );
+        }
+
+        if (payment.getStatus() == PaymentStatus.CANCELLED) {
+            throw new BusinessException(
+                    "Payment has already been cancelled"
+            );
+        }
+
+        PaymentIntent stripePaymentIntent =
+                retrieveStripePaymentIntent(payment);
+
+        if ("succeeded".equals(stripePaymentIntent.getStatus())) {
+            throw new BusinessException(
+                    "Payment has already been completed"
+            );
+        }
+
+        if ("canceled".equals(stripePaymentIntent.getStatus())) {
+            throw new BusinessException(
+                    "Payment has already been cancelled"
+            );
+        }
+
+        if ("processing".equals(stripePaymentIntent.getStatus())) {
+            throw new BusinessException(
+                    "Payment is currently being processed"
+            );
+        }
+
+        return toPaymentIntentResponse(
+                payment,
+                stripePaymentIntent
+        );
+    }
+
+    private PaymentIntent retrieveStripePaymentIntent(
+            Payment payment
+    ) {
+        try {
+            return stripeClient
+                    .v1()
+                    .paymentIntents()
+                    .retrieve(
+                            payment.getProviderPaymentId()
+                    );
+        } catch (StripeException exception) {
+            log.error(
+                    "Failed to retrieve Stripe Payment Intent: providerPaymentId={}",
+                    payment.getProviderPaymentId(),
+                    exception
+            );
+
+            throw new BusinessException(
+                    "Unable to initialize payment. Please try again"
+            );
+        }
     }
 }

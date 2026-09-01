@@ -16,6 +16,4 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Payment> findByBookingId(Long bookingId);
-
-    boolean existsByBookingId(Long bookingId);
 }

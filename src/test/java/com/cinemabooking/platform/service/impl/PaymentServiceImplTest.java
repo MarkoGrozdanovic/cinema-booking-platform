@@ -144,25 +144,69 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void createPaymentIntent_shouldRejectDuplicatePayment() {
+    void createPaymentIntent_shouldReuseExistingOpenPayment()
+            throws StripeException {
         Booking booking = validPendingBooking();
+
+        Payment existingPayment = payment(
+                PaymentStatus.PENDING,
+                booking
+        );
+
+        PaymentIntent stripeIntent = stripePaymentIntent(
+                "pi_test",
+                160000L,
+                "rsd",
+                "pi_test_secret_test"
+        );
+        stripeIntent.setStatus("requires_payment_method");
+
         when(bookingRepository.findByIdAndUserId(5L, 2L))
                 .thenReturn(Optional.of(booking));
-        when(paymentRepository.existsByBookingId(5L)).thenReturn(true);
 
-        BusinessException exception = assertThrows(
-                BusinessException.class,
-                () -> paymentService.createPaymentIntent(
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.of(existingPayment));
+
+        when(stripeClient
+                .v1()
+                .paymentIntents()
+                .retrieve("pi_test"))
+                .thenReturn(stripeIntent);
+
+        PaymentIntentResponseDTO response =
+                paymentService.createPaymentIntent(
                         new CreatePaymentRequestDTO(5L),
                         2L
-                )
-        );
+                );
 
+        assertEquals(7L, response.getPaymentId());
+        assertEquals(5L, response.getBookingId());
         assertEquals(
-                "A payment already exists for this booking",
-                exception.getMessage()
+                "pi_test",
+                response.getProviderPaymentId()
         );
-        verifyNoInteractions(stripeClient);
+        assertEquals(
+                "pi_test_secret_test",
+                response.getClientSecret()
+        );
+        assertEquals(
+                PaymentStatus.PENDING,
+                response.getStatus()
+        );
+        assertEquals(
+                new BigDecimal("1600.00"),
+                response.getAmount()
+        );
+        assertEquals("rsd", response.getCurrency());
+
+        verify(paymentRepository, never())
+                .save(any(Payment.class));
+
+        verify(stripeClient.v1().paymentIntents(), never())
+                .create(
+                        any(PaymentIntentCreateParams.class),
+                        any(RequestOptions.class)
+                );
     }
 
     @Test
@@ -178,7 +222,8 @@ class PaymentServiceImplTest {
 
         when(bookingRepository.findByIdAndUserId(5L, 2L))
                 .thenReturn(Optional.of(booking));
-        when(paymentRepository.existsByBookingId(5L)).thenReturn(false);
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.empty());
         when(stripeClient.v1().paymentIntents().create(
                 any(PaymentIntentCreateParams.class),
                 any(RequestOptions.class)
@@ -225,7 +270,8 @@ class PaymentServiceImplTest {
 
         when(bookingRepository.findByIdAndUserId(5L, 2L))
                 .thenReturn(Optional.of(booking));
-        when(paymentRepository.existsByBookingId(5L)).thenReturn(false);
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.empty());
         when(stripeClient.v1().paymentIntents().create(
                 any(PaymentIntentCreateParams.class),
                 any(RequestOptions.class)

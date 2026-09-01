@@ -41,4 +41,12 @@ public class ScreeningController {
 
         return ResponseEntity.ok(seats);
     }
+
+    @GetMapping("/screenings/upcoming")
+    public ResponseEntity<List<ScreeningResponseDTO>>
+    getUpcomingScreenings() {
+        return ResponseEntity.ok(
+                screeningService.getUpcomingScreenings()
+        );
+    }
 }

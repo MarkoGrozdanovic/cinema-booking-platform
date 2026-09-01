@@ -12,4 +12,5 @@ public interface ScreeningSerivce {
     List<ScreeningSeatResponseDTO> getScreeningSeats(
             Long screeningId
     );
+    List<ScreeningResponseDTO> getUpcomingScreenings();
 }

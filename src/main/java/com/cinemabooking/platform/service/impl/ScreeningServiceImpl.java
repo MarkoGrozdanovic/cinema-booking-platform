@@ -157,6 +157,16 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScreeningResponseDTO> getUpcomingScreenings() {
+        return screeningRepository
+                .findUpcomingScreenings(LocalDateTime.now())
+                .stream()
+                .map(this::toScreeningResponse)
+                .toList();
+    }
+
     private ScreeningSeatResponseDTO toScreeningSeatResponse(
             ScreeningSeat screeningSeat
     ) {
