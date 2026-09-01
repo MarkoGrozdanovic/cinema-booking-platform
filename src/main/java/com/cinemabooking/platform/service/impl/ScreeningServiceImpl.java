@@ -161,7 +161,7 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
     @Transactional(readOnly = true)
     public List<ScreeningResponseDTO> getUpcomingScreenings() {
         return screeningRepository
-                .findUpcomingScreenings(LocalDateTime.now())
+                .findUpcomingScreenings(LocalDateTime.now(), ScreeningStatus.SCHEDULED)
                 .stream()
                 .map(this::toScreeningResponse)
                 .toList();

@@ -84,7 +84,6 @@ class ScreeningControllerTest {
 
         mockMvc.perform(post("/api/screenings")
                         .with(authentication(adminAuthentication()))
-                        .with(authentication(adminAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
@@ -135,7 +134,6 @@ class ScreeningControllerTest {
             """;
 
         mockMvc.perform(post("/api/screenings")
-                        .with(authentication(adminAuthentication()))
                         .with(authentication(customerAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
@@ -244,5 +242,67 @@ class ScreeningControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message")
                         .value("Screening with ID 999 was not found"));
+    }
+
+    @Test
+    void shouldReturnUpcomingScreeningsWithoutAuthentication()
+            throws Exception {
+        ScreeningResponseDTO screening =
+                ScreeningResponseDTO.builder()
+                        .id(30L)
+                        .movieId(10L)
+                        .movieTitle("The Dark Knight")
+                        .hallId(20L)
+                        .cinemaName("Central Cinema")
+                        .startTime(
+                                LocalDateTime.of(
+                                        2099,
+                                        9,
+                                        10,
+                                        19,
+                                        0
+                                )
+                        )
+                        .endTime(
+                                LocalDateTime.of(
+                                        2099,
+                                        9,
+                                        10,
+                                        21,
+                                        32
+                                )
+                        )
+                        .basePrice(
+                                new BigDecimal("800.00")
+                        )
+                        .status("SCHEDULED")
+                        .numberOfSeats(100)
+                        .build();
+
+        when(screeningService.getUpcomingScreenings())
+                .thenReturn(List.of(screening));
+
+        mockMvc.perform(
+                        get("/api/screenings/upcoming")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id")
+                        .value(30))
+                .andExpect(jsonPath("$[0].movieId")
+                        .value(10))
+                .andExpect(jsonPath("$[0].movieTitle")
+                        .value("The Dark Knight"))
+                .andExpect(jsonPath("$[0].hallId")
+                        .value(20))
+                .andExpect(jsonPath("$[0].cinemaName")
+                        .value("Central Cinema"))
+                .andExpect(jsonPath("$[0].basePrice")
+                        .value(800.00))
+                .andExpect(jsonPath("$[0].status")
+                        .value("SCHEDULED"))
+                .andExpect(jsonPath("$[0].numberOfSeats")
+                        .value(100));
+
+        verify(screeningService).getUpcomingScreenings();
     }
 }

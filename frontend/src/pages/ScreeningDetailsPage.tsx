@@ -72,12 +72,12 @@ function ScreeningDetailsPage() {
     setBookingError(null);
 
     try {
-      await createBooking({
+      const booking = await createBooking({
         screeningId: id,
         screeningSeatIds: selectedSeatIds,
       });
 
-      navigate("/bookings");
+      navigate(`/bookings/${booking.id}/payment`);
     } catch (error) {
       if (isAxiosError<{ message?: string }>(error)) {
         setBookingError(
@@ -169,7 +169,7 @@ function ScreeningDetailsPage() {
               onClick={() => void handleCreateBooking()}
               className="mt-6 w-full rounded-lg bg-amber-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Creating booking..." : "Continue to booking"}
+              {isSubmitting ? "Creating booking..." : "Continue to payment"}
             </button>
           </div>
         )}

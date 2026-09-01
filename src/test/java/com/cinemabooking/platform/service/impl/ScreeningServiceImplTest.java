@@ -488,4 +488,90 @@ class ScreeningServiceImplTest {
 
         verifyNoInteractions(screeningSeatRepository);
     }
+
+    @Test
+    void getUpcomingScreenings_shouldReturnMappedScheduledScreenings() {
+        LocalDateTime startTime =
+                LocalDateTime.of(2099, 9, 10, 19, 0);
+
+        LocalDateTime endTime =
+                LocalDateTime.of(2099, 9, 10, 21, 32);
+
+        Movie movie = new Movie();
+        movie.setId(10L);
+        movie.setTitle("The Dark Knight");
+
+        Cinema cinema = new Cinema();
+        cinema.setName("Central Cinema");
+
+        Hall hall = new Hall();
+        hall.setId(20L);
+        hall.setCinema(cinema);
+
+        Screening screening = new Screening();
+        screening.setId(30L);
+        screening.setMovie(movie);
+        screening.setHall(hall);
+        screening.setStartTime(startTime);
+        screening.setEndTime(endTime);
+        screening.setBasePrice(
+                new BigDecimal("800.00")
+        );
+        screening.setStatus(ScreeningStatus.SCHEDULED);
+
+        screening.addScreeningSeat(new ScreeningSeat());
+        screening.addScreeningSeat(new ScreeningSeat());
+
+        when(screeningRepository.findUpcomingScreenings(
+                any(LocalDateTime.class),
+                eq(ScreeningStatus.SCHEDULED)
+        )).thenReturn(List.of(screening));
+
+        List<ScreeningResponseDTO> response =
+                screeningService.getUpcomingScreenings();
+
+        assertEquals(1, response.size());
+
+        ScreeningResponseDTO result = response.get(0);
+
+        assertAll(
+                () -> assertEquals(30L, result.getId()),
+                () -> assertEquals(10L, result.getMovieId()),
+                () -> assertEquals(
+                        "The Dark Knight",
+                        result.getMovieTitle()
+                ),
+                () -> assertEquals(20L, result.getHallId()),
+                () -> assertEquals(
+                        "Central Cinema",
+                        result.getCinemaName()
+                ),
+                () -> assertEquals(
+                        startTime,
+                        result.getStartTime()
+                ),
+                () -> assertEquals(
+                        endTime,
+                        result.getEndTime()
+                ),
+                () -> assertEquals(
+                        new BigDecimal("800.00"),
+                        result.getBasePrice()
+                ),
+                () -> assertEquals(
+                        "SCHEDULED",
+                        result.getStatus()
+                ),
+                () -> assertEquals(
+                        2,
+                        result.getNumberOfSeats()
+                )
+        );
+
+        verify(screeningRepository)
+                .findUpcomingScreenings(
+                        any(LocalDateTime.class),
+                        eq(ScreeningStatus.SCHEDULED)
+                );
+    }
 }

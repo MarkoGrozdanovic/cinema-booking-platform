@@ -27,9 +27,11 @@ public interface ScreeningRepository extends JpaRepository<Screening, Long> {
         SELECT s
         FROM Screening s
         WHERE s.startTime > :now
+          AND s.status = :status
         ORDER BY s.startTime ASC
         """)
     List<Screening> findUpcomingScreenings(
-            @Param("now") LocalDateTime now
+            @Param("now") LocalDateTime now,
+            @Param("status") ScreeningStatus status
     );
 }
