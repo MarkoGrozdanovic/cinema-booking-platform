@@ -14,3 +14,7 @@ export async function createBooking(
 
   return response.data;
 }
+
+export async function cancelBooking(bookingId: number): Promise<void> {
+  await httpClient.delete(`/bookings/${bookingId}`);
+}

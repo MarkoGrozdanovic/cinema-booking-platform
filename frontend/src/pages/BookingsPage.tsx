@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { getMyBookings } from "../api/bookingApi";
+import { cancelBooking, getMyBookings } from "../api/bookingApi";
 import type { ApiErrorResponse } from "../types/auth";
 import type { Booking, BookingStatus } from "../types/booking";
 import { Link } from "react-router";
@@ -29,6 +29,12 @@ function BookingsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
+
+  const [cancellingBookingId, setCancellingBookingId] = useState<number | null>(
+    null,
+  );
+
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -73,6 +79,38 @@ function BookingsPage() {
     );
   }
 
+  async function handleCancelBooking(bookingId: number) {
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this booking?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setCancellingBookingId(bookingId);
+    setActionError(null);
+
+    try {
+      await cancelBooking(bookingId);
+
+      setBookings((currentBookings) =>
+        currentBookings.map((booking) =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                status: "CANCELLED",
+              }
+            : booking,
+        ),
+      );
+    } catch {
+      setActionError("Unable to cancel the booking. Please try again.");
+    } finally {
+      setCancellingBookingId(null);
+    }
+  }
+
   return (
     <section>
       <h1 className="text-3xl font-bold">My bookings</h1>
@@ -87,6 +125,11 @@ function BookingsPage() {
         </div>
       ) : (
         <div className="mt-8 space-y-5">
+          {actionError && (
+            <div className="mt-6 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-red-200">
+              {actionError}
+            </div>
+          )}
           {bookings.map((booking) => (
             <article
               className="rounded-xl border border-slate-800 bg-slate-900 p-6"
@@ -127,14 +170,29 @@ function BookingsPage() {
                   </dd>
                 </div>
 
-                {booking.status === "PENDING_PAYMENT" && (
-                  <Link
-                    to={`/bookings/${booking.id}/payment`}
-                    className="mt-5 inline-block rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
-                  >
-                    Pay now
-                  </Link>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  {booking.status === "PENDING_PAYMENT" && (
+                    <Link
+                      to={`/bookings/${booking.id}/payment`}
+                      className="mt-5 inline-block rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-400"
+                    >
+                      Pay now
+                    </Link>
+                  )}
+
+                  {booking.status === "PENDING_PAYMENT" && (
+                    <button
+                      type="button"
+                      disabled={cancellingBookingId === booking.id}
+                      onClick={() => void handleCancelBooking(booking.id)}
+                      className="mt-5 rounded-lg border border-red-500 px-4 py-2 font-semibold text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {cancellingBookingId === booking.id
+                        ? "Cancelling..."
+                        : "Cancel booking"}
+                    </button>
+                  )}
+                </div>
 
                 <div>
                   <dt className="text-slate-500">Total</dt>
