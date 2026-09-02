@@ -49,6 +49,9 @@ public class SecurityConfig {
                                         "/v3/api-docs/**")
                                 .permitAll()
 
+                                .requestMatchers("/api/admin/**")
+                                .hasRole("ADMIN")
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/screenings/upcoming"

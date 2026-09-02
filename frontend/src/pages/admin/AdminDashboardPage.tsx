@@ -37,6 +37,13 @@ function AdminDashboardPage() {
           <p className="mt-3 text-sm text-slate-400">
             Movie administration will be added after the screening workflow.
           </p>
+
+          <Link
+            to="/admin/movies"
+            className="mt-5 inline-block rounded-lg border border-amber-500 px-4 py-2 font-semibold text-amber-300 transition hover:bg-amber-950/30"
+          >
+            Manage movies
+          </Link>
         </article>
 
         <article className="rounded-xl border border-slate-700 bg-slate-800 p-6">

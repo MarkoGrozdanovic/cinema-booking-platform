@@ -12,6 +12,8 @@ import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import AdminRoute from "./components/auth/AdminRoute";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import CreateScreeningPage from "./pages/admin/CreateScreeningPage";
+import AdminMoviesPage from "./pages/admin/AdminMoviesPage";
+import CreateMoviePage from "./pages/admin/CreateMoviePage";
 
 function App() {
   return (
@@ -28,6 +30,10 @@ function App() {
             path="admin/screenings/new"
             element={<CreateScreeningPage />}
           />
+
+          <Route path="admin/movies" element={<AdminMoviesPage />} />
+
+          <Route path="admin/movies/new" element={<CreateMoviePage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
