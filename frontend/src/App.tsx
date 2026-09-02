@@ -9,6 +9,9 @@ import BookingsPage from "./pages/BookingsPage";
 import ScreeningDetailsPage from "./pages/ScreeningDetailsPage";
 import PaymentPage from "./pages/PaymentPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import AdminRoute from "./components/auth/AdminRoute";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import CreateScreeningPage from "./pages/admin/CreateScreeningPage";
 
 function App() {
   return (
@@ -17,6 +20,15 @@ function App() {
         <Route index element={<HomePage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+
+        <Route element={<AdminRoute />}>
+          <Route path="admin" element={<AdminDashboardPage />} />
+
+          <Route
+            path="admin/screenings/new"
+            element={<CreateScreeningPage />}
+          />
+        </Route>
 
         <Route element={<ProtectedRoute />}>
           <Route path="bookings" element={<BookingsPage />} />

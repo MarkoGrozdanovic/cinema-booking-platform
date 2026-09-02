@@ -7,6 +7,8 @@ import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
+import com.cinemabooking.platform.model.response.HallOptionResponseDTO;
+import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.repositories.*;
@@ -573,5 +575,112 @@ class ScreeningServiceImplTest {
                         any(LocalDateTime.class),
                         eq(ScreeningStatus.SCHEDULED)
                 );
+    }
+
+    @Test
+    void getActiveMovieOptions_shouldReturnMappedMovies() {
+        Movie firstMovie = new Movie();
+        firstMovie.setId(1L);
+        firstMovie.setTitle("Interstellar");
+        firstMovie.setDurationMinutes(169);
+
+        Movie secondMovie = new Movie();
+        secondMovie.setId(2L);
+        secondMovie.setTitle("The Dark Knight");
+        secondMovie.setDurationMinutes(152);
+
+        when(movieRepository
+                .findAllByActiveTrueOrderByTitleAsc())
+                .thenReturn(
+                        List.of(firstMovie, secondMovie)
+                );
+
+        List<MovieOptionResponseDTO> response =
+                screeningService.getActiveMovieOptions();
+
+        assertEquals(2, response.size());
+
+        assertAll(
+                () -> assertEquals(
+                        1L,
+                        response.get(0).getId()
+                ),
+                () -> assertEquals(
+                        "Interstellar",
+                        response.get(0).getTitle()
+                ),
+                () -> assertEquals(
+                        169,
+                        response.get(0).getDurationMinutes()
+                ),
+                () -> assertEquals(
+                        2L,
+                        response.get(1).getId()
+                ),
+                () -> assertEquals(
+                        "The Dark Knight",
+                        response.get(1).getTitle()
+                ),
+                () -> assertEquals(
+                        152,
+                        response.get(1).getDurationMinutes()
+                )
+        );
+    }
+
+    @Test
+    void getActiveHallOptions_shouldReturnMappedHalls() {
+        Cinema firstCinema = new Cinema();
+        firstCinema.setName("Central Cinema");
+
+        Cinema secondCinema = new Cinema();
+        secondCinema.setName("Riverside Cinema");
+
+        Hall firstHall = new Hall();
+        firstHall.setId(10L);
+        firstHall.setName("Hall 1");
+        firstHall.setCinema(firstCinema);
+
+        Hall secondHall = new Hall();
+        secondHall.setId(20L);
+        secondHall.setName("IMAX Hall");
+        secondHall.setCinema(secondCinema);
+
+        when(hallRepository.findAllActiveWithActiveCinema())
+                .thenReturn(
+                        List.of(firstHall, secondHall)
+                );
+
+        List<HallOptionResponseDTO> response =
+                screeningService.getActiveHallOptions();
+
+        assertEquals(2, response.size());
+
+        assertAll(
+                () -> assertEquals(
+                        10L,
+                        response.get(0).getId()
+                ),
+                () -> assertEquals(
+                        "Hall 1",
+                        response.get(0).getHallName()
+                ),
+                () -> assertEquals(
+                        "Central Cinema",
+                        response.get(0).getCinemaName()
+                ),
+                () -> assertEquals(
+                        20L,
+                        response.get(1).getId()
+                ),
+                () -> assertEquals(
+                        "IMAX Hall",
+                        response.get(1).getHallName()
+                ),
+                () -> assertEquals(
+                        "Riverside Cinema",
+                        response.get(1).getCinemaName()
+                )
+        );
     }
 }

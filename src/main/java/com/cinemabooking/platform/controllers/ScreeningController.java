@@ -1,6 +1,8 @@
 package com.cinemabooking.platform.controllers;
 
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
+import com.cinemabooking.platform.model.response.HallOptionResponseDTO;
+import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.service.ScreeningSerivce;
@@ -47,6 +49,22 @@ public class ScreeningController {
     getUpcomingScreenings() {
         return ResponseEntity.ok(
                 screeningService.getUpcomingScreenings()
+        );
+    }
+
+    @GetMapping("/screenings/options/movies")
+    public ResponseEntity<List<MovieOptionResponseDTO>>
+    getActiveMovieOptions() {
+        return ResponseEntity.ok(
+                screeningService.getActiveMovieOptions()
+        );
+    }
+
+    @GetMapping("/screenings/options/halls")
+    public ResponseEntity<List<HallOptionResponseDTO>>
+    getActiveHallOptions() {
+        return ResponseEntity.ok(
+                screeningService.getActiveHallOptions()
         );
     }
 }

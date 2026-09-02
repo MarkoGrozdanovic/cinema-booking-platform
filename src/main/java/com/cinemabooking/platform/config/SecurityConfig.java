@@ -55,6 +55,11 @@ public class SecurityConfig {
                                 ).permitAll()
 
                                 .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/screenings/options/**"
+                                ).hasRole("ADMIN")
+
+                                .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/screenings"
                                 ).hasRole("ADMIN")

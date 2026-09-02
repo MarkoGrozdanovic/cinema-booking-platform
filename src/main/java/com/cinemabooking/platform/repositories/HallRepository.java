@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -21,4 +22,14 @@ public interface HallRepository extends JpaRepository<Hall, Long> {
     Optional<Hall> findByIdWithLock(
             @Param("hallId") Long hallId
     );
+
+    @Query("""
+        SELECT h
+        FROM Hall h
+        JOIN FETCH h.cinema c
+        WHERE h.active = true
+          AND c.active = true
+        ORDER BY c.name ASC, h.name ASC
+        """)
+    List<Hall> findAllActiveWithActiveCinema();
 }

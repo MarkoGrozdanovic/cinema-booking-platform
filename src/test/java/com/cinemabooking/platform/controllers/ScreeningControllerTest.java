@@ -7,6 +7,8 @@ import com.cinemabooking.platform.model.enums.AppRole;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
+import com.cinemabooking.platform.model.response.HallOptionResponseDTO;
+import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.repositories.UserRepository;
@@ -256,20 +258,12 @@ class ScreeningControllerTest {
                         .cinemaName("Central Cinema")
                         .startTime(
                                 LocalDateTime.of(
-                                        2099,
-                                        9,
-                                        10,
-                                        19,
-                                        0
+                                        2099, 9, 10, 19, 0
                                 )
                         )
                         .endTime(
                                 LocalDateTime.of(
-                                        2099,
-                                        9,
-                                        10,
-                                        21,
-                                        32
+                                        2099, 9, 10, 21, 32
                                 )
                         )
                         .basePrice(
@@ -304,5 +298,103 @@ class ScreeningControllerTest {
                         .value(100));
 
         verify(screeningService).getUpcomingScreenings();
+    }
+
+    @Test
+    void shouldReturnMovieOptionsForAdmin()
+            throws Exception {
+        MovieOptionResponseDTO movie =
+                MovieOptionResponseDTO.builder()
+                        .id(10L)
+                        .title("The Dark Knight")
+                        .durationMinutes(152)
+                        .build();
+
+        when(screeningService.getActiveMovieOptions())
+                .thenReturn(List.of(movie));
+
+        mockMvc.perform(
+                        get("/api/screenings/options/movies")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id")
+                        .value(10))
+                .andExpect(jsonPath("$[0].title")
+                        .value("The Dark Knight"))
+                .andExpect(jsonPath("$[0].durationMinutes")
+                        .value(152));
+
+        verify(screeningService).getActiveMovieOptions();
+    }
+
+    @Test
+    void shouldReturnHallOptionsForAdmin()
+            throws Exception {
+        HallOptionResponseDTO hall =
+                HallOptionResponseDTO.builder()
+                        .id(20L)
+                        .hallName("Hall 1")
+                        .cinemaName("Central Cinema")
+                        .build();
+
+        when(screeningService.getActiveHallOptions())
+                .thenReturn(List.of(hall));
+
+        mockMvc.perform(
+                        get("/api/screenings/options/halls")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id")
+                        .value(20))
+                .andExpect(jsonPath("$[0].hallName")
+                        .value("Hall 1"))
+                .andExpect(jsonPath("$[0].cinemaName")
+                        .value("Central Cinema"));
+
+        verify(screeningService).getActiveHallOptions();
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenCustomerRequestsScreeningOptions()
+            throws Exception {
+        mockMvc.perform(
+                        get("/api/screenings/options/movies")
+                                .with(authentication(
+                                        customerAuthentication()
+                                ))
+                )
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(
+                        get("/api/screenings/options/halls")
+                                .with(authentication(
+                                        customerAuthentication()
+                                ))
+                )
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(screeningService);
+    }
+
+    @Test
+    void shouldReturnUnauthorizedWhenScreeningOptionsHaveNoAuthentication()
+            throws Exception {
+        mockMvc.perform(
+                        get("/api/screenings/options/movies")
+                )
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(
+                        get("/api/screenings/options/halls")
+                )
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(screeningService);
     }
 }

@@ -7,6 +7,8 @@ import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateScreeningRequestDTO;
+import com.cinemabooking.platform.model.response.HallOptionResponseDTO;
+import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.repositories.*;
@@ -164,6 +166,42 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
                 .findUpcomingScreenings(LocalDateTime.now(), ScreeningStatus.SCHEDULED)
                 .stream()
                 .map(this::toScreeningResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MovieOptionResponseDTO> getActiveMovieOptions() {
+        return movieRepository
+                .findAllByActiveTrueOrderByTitleAsc()
+                .stream()
+                .map(movie ->
+                        MovieOptionResponseDTO.builder()
+                                .id(movie.getId())
+                                .title(movie.getTitle())
+                                .durationMinutes(
+                                        movie.getDurationMinutes()
+                                )
+                                .build()
+                )
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HallOptionResponseDTO> getActiveHallOptions() {
+        return hallRepository
+                .findAllActiveWithActiveCinema()
+                .stream()
+                .map(hall ->
+                        HallOptionResponseDTO.builder()
+                                .id(hall.getId())
+                                .hallName(hall.getName())
+                                .cinemaName(
+                                        hall.getCinema().getName()
+                                )
+                                .build()
+                )
                 .toList();
     }
 

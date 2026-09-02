@@ -31,6 +31,18 @@ function AppLayout() {
           <div className="flex items-center gap-5">
             {user ? (
               <>
+                {user?.role === "ADMIN" && (
+                  <NavLink
+                    to="/admin"
+                    className={({ isActive }) =>
+                      isActive
+                        ? "font-semibold text-amber-400"
+                        : "text-slate-300 transition hover:text-white"
+                    }
+                  >
+                    Admin
+                  </NavLink>
+                )}
                 <NavLink className={navigationLinkClass} to="/bookings">
                   My bookings
                 </NavLink>
