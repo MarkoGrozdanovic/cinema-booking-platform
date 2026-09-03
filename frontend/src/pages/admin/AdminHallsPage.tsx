@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
+import { getAllHalls } from "../../api/hallApi";
+import type { Hall } from "../../types/hall";
+
+function AdminHallsPage() {
+  const [halls, setHalls] = useState<Hall[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHalls() {
+      try {
+        const response = await getAllHalls();
+
+        if (!cancelled) {
+          setHalls(response);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load cinema halls.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadHalls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">
+            Administration
+          </p>
+
+          <h1 className="mt-2 text-4xl font-bold">Cinema halls</h1>
+
+          <p className="mt-3 text-slate-400">
+            Manage halls and their physical seat layouts.
+          </p>
+        </div>
+
+        <Link
+          to="/admin/halls/new"
+          className="rounded-lg bg-amber-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-amber-400"
+        >
+          Add hall
+        </Link>
+      </div>
+
+      {isLoading && (
+        <p className="mt-10 text-slate-300">Loading cinema halls...</p>
+      )}
+
+      {error && (
+        <div className="mt-8 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-red-200">
+          {error}
+        </div>
+      )}
+
+      {!isLoading && !error && halls.length === 0 && (
+        <div className="mt-8 rounded-xl border border-slate-700 bg-slate-800 p-6 text-slate-300">
+          No cinema halls have been added yet.
+        </div>
+      )}
+
+      {!isLoading && !error && halls.length > 0 && (
+        <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {halls.map((hall) => (
+            <article
+              key={hall.id}
+              className="rounded-xl border border-slate-700 bg-slate-800 p-6"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">{hall.name}</h2>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {hall.cinemaName}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    hall.active
+                      ? "bg-emerald-950 text-emerald-300"
+                      : "bg-slate-700 text-slate-400"
+                  }`}
+                >
+                  {hall.active ? "Active" : "Inactive"}
+                </span>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between border-t border-slate-700 pt-4 text-sm">
+                <span className="text-slate-300">
+                  {hall.hallType.replaceAll("_", " ")}
+                </span>
+
+                <span className="font-semibold text-amber-400">
+                  {hall.numberOfSeats} seats
+                </span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default AdminHallsPage;

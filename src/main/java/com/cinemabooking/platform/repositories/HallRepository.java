@@ -32,4 +32,19 @@ public interface HallRepository extends JpaRepository<Hall, Long> {
         ORDER BY c.name ASC, h.name ASC
         """)
     List<Hall> findAllActiveWithActiveCinema();
+
+    boolean existsByNameIgnoreCaseAndCinemaId(
+            String name,
+            Long cinemaId
+    );
+
+
+    @Query("""
+        SELECT DISTINCT h
+        FROM Hall h
+        JOIN FETCH h.cinema
+        LEFT JOIN FETCH h.seats
+        ORDER BY h.cinema.name ASC, h.name ASC
+        """)
+    List<Hall> findAllWithCinemaAndSeats();
 }

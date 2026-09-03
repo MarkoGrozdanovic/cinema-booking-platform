@@ -52,6 +52,22 @@ function AdminDashboardPage() {
           <p className="mt-3 text-sm text-slate-400">
             Cinema, hall, and seat administration will be added in a later step.
           </p>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/admin/cinemas"
+              className="rounded-lg border border-amber-500 px-4 py-2 font-semibold text-amber-300 transition hover:bg-amber-950/30"
+            >
+              Manage cinemas
+            </Link>
+
+            <Link
+              to="/admin/halls"
+              className="rounded-lg border border-slate-500 px-4 py-2 font-semibold text-slate-300 transition hover:bg-slate-700"
+            >
+              Manage halls
+            </Link>
+          </div>
         </article>
       </div>
     </section>

@@ -14,6 +14,10 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import CreateScreeningPage from "./pages/admin/CreateScreeningPage";
 import AdminMoviesPage from "./pages/admin/AdminMoviesPage";
 import CreateMoviePage from "./pages/admin/CreateMoviePage";
+import AdminCinemasPage from "./pages/admin/AdminCinemaPage";
+import CreateCinemaPage from "./pages/admin/CreateCinemaPage";
+import AdminHallsPage from "./pages/admin/AdminHallsPage";
+import CreateHallPage from "./pages/admin/CreateHallPage";
 
 function App() {
   return (
@@ -34,6 +38,14 @@ function App() {
           <Route path="admin/movies" element={<AdminMoviesPage />} />
 
           <Route path="admin/movies/new" element={<CreateMoviePage />} />
+
+          <Route path="admin/cinemas" element={<AdminCinemasPage />} />
+
+          <Route path="admin/cinemas/new" element={<CreateCinemaPage />} />
+
+          <Route path="admin/halls" element={<AdminHallsPage />} />
+
+          <Route path="admin/halls/new" element={<CreateHallPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
