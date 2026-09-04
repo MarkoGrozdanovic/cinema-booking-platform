@@ -12,3 +12,14 @@ export async function createHall(request: CreateHallRequest): Promise<Hall> {
 
   return response.data;
 }
+
+export async function updateHallStatus(
+  hallId: number,
+  active: boolean,
+): Promise<Hall> {
+  const response = await httpClient.put<Hall>(`/admin/halls/${hallId}/status`, {
+    active,
+  });
+
+  return response.data;
+}

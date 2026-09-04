@@ -2,9 +2,11 @@ package com.cinemabooking.platform.service.impl;
 
 import com.cinemabooking.platform.exceptions.BusinessException;
 import com.cinemabooking.platform.model.Cinema;
+import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.request.CreateCinemaRequestDTO;
 import com.cinemabooking.platform.model.response.CinemaResponseDTO;
 import com.cinemabooking.platform.repositories.CinemaRepository;
+import com.cinemabooking.platform.repositories.ScreeningRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,17 +15,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CinemaServiceImplTest {
@@ -33,6 +31,9 @@ class CinemaServiceImplTest {
 
     @InjectMocks
     private CinemaServiceImpl cinemaService;
+
+    @Mock
+    private ScreeningRepository screeningRepository;
 
     @Test
     void createCinema_shouldNormalizeSaveAndReturnCinema() {
@@ -192,5 +193,89 @@ class CinemaServiceImplTest {
         );
 
         verify(cinemaRepository).findAll(any(Sort.class));
+    }
+
+    @Test
+    void updateCinemaStatus_shouldDeactivateCinemaWithoutFutureScreenings() {
+        Cinema cinema = new Cinema();
+        cinema.setId(10L);
+        cinema.setName("Central Cinema");
+        cinema.setActive(true);
+
+        when(cinemaRepository.findById(10L))
+                .thenReturn(Optional.of(cinema));
+
+        when(screeningRepository
+                .existsFutureScreeningForCinema(
+                        eq(10L),
+                        eq(ScreeningStatus.SCHEDULED),
+                        any(LocalDateTime.class)
+                ))
+                .thenReturn(false);
+
+        CinemaResponseDTO response =
+                cinemaService.updateCinemaStatus(
+                        10L,
+                        false
+                );
+
+        assertFalse(cinema.isActive());
+        assertFalse(response.isActive());
+    }
+
+    @Test
+    void updateCinemaStatus_shouldRejectDeactivationWithFutureScreenings() {
+        Cinema cinema = new Cinema();
+        cinema.setId(10L);
+        cinema.setName("Central Cinema");
+        cinema.setActive(true);
+
+        when(cinemaRepository.findById(10L))
+                .thenReturn(Optional.of(cinema));
+
+        when(screeningRepository
+                .existsFutureScreeningForCinema(
+                        eq(10L),
+                        eq(ScreeningStatus.SCHEDULED),
+                        any(LocalDateTime.class)
+                ))
+                .thenReturn(true);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> cinemaService.updateCinemaStatus(
+                        10L,
+                        false
+                )
+        );
+
+        assertEquals(
+                "Cinema cannot be deactivated while it has future scheduled screenings",
+                exception.getMessage()
+        );
+
+        assertTrue(cinema.isActive());
+    }
+
+    @Test
+    void updateCinemaStatus_shouldActivateCinema() {
+        Cinema cinema = new Cinema();
+        cinema.setId(10L);
+        cinema.setName("Central Cinema");
+        cinema.setActive(false);
+
+        when(cinemaRepository.findById(10L))
+                .thenReturn(Optional.of(cinema));
+
+        CinemaResponseDTO response =
+                cinemaService.updateCinemaStatus(
+                        10L,
+                        true
+                );
+
+        assertTrue(cinema.isActive());
+        assertTrue(response.isActive());
+
+        verifyNoInteractions(screeningRepository);
     }
 }

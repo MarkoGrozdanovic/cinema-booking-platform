@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { isAxiosError } from "axios";
 import { Link } from "react-router";
-import { getAllHalls } from "../../api/hallApi";
+import { getAllHalls, updateHallStatus } from "../../api/hallApi";
 import type { Hall } from "../../types/hall";
+import { useEffect, useState } from "react";
 
 function AdminHallsPage() {
   const [halls, setHalls] = useState<Hall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingHallId, setUpdatingHallId] = useState<number | null>(null);
+
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +39,33 @@ function AdminHallsPage() {
       cancelled = true;
     };
   }, []);
+
+  async function handleStatusChange(hall: Hall) {
+    if (hall.active && !window.confirm(`Deactivate "${hall.name}"?`)) {
+      return;
+    }
+
+    setUpdatingHallId(hall.id);
+    setActionError(null);
+
+    try {
+      const updatedHall = await updateHallStatus(hall.id, !hall.active);
+
+      setHalls((currentHalls) =>
+        currentHalls.map((currentHall) =>
+          currentHall.id === updatedHall.id ? updatedHall : currentHall,
+        ),
+      );
+    } catch (error) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data.message
+        : undefined;
+
+      setActionError(message ?? "Unable to update hall status.");
+    } finally {
+      setUpdatingHallId(null);
+    }
+  }
 
   return (
     <section>
@@ -75,6 +106,12 @@ function AdminHallsPage() {
         </div>
       )}
 
+      {actionError && (
+        <div className="mt-6 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-red-200">
+          {actionError}
+        </div>
+      )}
+
       {!isLoading && !error && halls.length > 0 && (
         <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {halls.map((hall) => (
@@ -111,6 +148,23 @@ function AdminHallsPage() {
                   {hall.numberOfSeats} seats
                 </span>
               </div>
+
+              <button
+                type="button"
+                disabled={updatingHallId === hall.id}
+                onClick={() => void handleStatusChange(hall)}
+                className={`mt-5 w-full rounded-lg border px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  hall.active
+                    ? "border-red-500 text-red-300 hover:bg-red-950/40"
+                    : "border-emerald-500 text-emerald-300 hover:bg-emerald-950/40"
+                }`}
+              >
+                {updatingHallId === hall.id
+                  ? "Updating..."
+                  : hall.active
+                    ? "Deactivate"
+                    : "Activate"}
+              </button>
             </article>
           ))}
         </div>

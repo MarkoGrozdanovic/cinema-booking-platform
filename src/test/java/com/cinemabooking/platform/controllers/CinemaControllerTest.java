@@ -31,6 +31,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 @WebMvcTest(CinemaController.class)
 @Import({
@@ -232,5 +235,92 @@ class CinemaControllerTest {
                                 )
                         )
                 );
+    }
+
+    @Test
+    void shouldUpdateCinemaStatusAsAdmin()
+            throws Exception {
+        CinemaResponseDTO response =
+                CinemaResponseDTO.builder()
+                        .id(10L)
+                        .name("Central Cinema")
+                        .address("Main Street 1")
+                        .city("Belgrade")
+                        .active(false)
+                        .build();
+
+        when(cinemaService.updateCinemaStatus(
+                10L,
+                false
+        )).thenReturn(response);
+
+        mockMvc.perform(
+                        put("/api/admin/cinemas/10/status")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("""
+                                    {
+                                      "active": false
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")
+                        .value(10))
+                .andExpect(jsonPath("$.active")
+                        .value(false));
+
+        verify(cinemaService).updateCinemaStatus(
+                10L,
+                false
+        );
+    }
+
+    @Test
+    void shouldRejectCinemaStatusWithoutActiveValue()
+            throws Exception {
+        mockMvc.perform(
+                        put("/api/admin/cinemas/10/status")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("{}")
+                )
+                .andExpect(status().isBadRequest());
+
+        verify(cinemaService, never())
+                .updateCinemaStatus(
+                        anyLong(),
+                        anyBoolean()
+                );
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenCustomerUpdatesCinemaStatus()
+            throws Exception {
+        mockMvc.perform(
+                        put("/api/admin/cinemas/10/status")
+                                .with(authentication(
+                                        customerAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("""
+                                    {
+                                      "active": false
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(cinemaService);
     }
 }

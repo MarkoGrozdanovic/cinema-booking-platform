@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.cinemabooking.platform.model.request.UpdateHallStatusRequestDTO;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import java.util.List;
 
 @Tag(
@@ -45,5 +47,20 @@ public class HallController {
         return ResponseEntity.ok(
                 hallService.getAllHalls()
         );
+    }
+
+    @PutMapping("/{hallId}/status")
+    public ResponseEntity<HallResponseDTO> updateHallStatus(
+            @PathVariable Long hallId,
+            @Valid
+            @RequestBody UpdateHallStatusRequestDTO request
+    ) {
+        HallResponseDTO response =
+                hallService.updateHallStatus(
+                        hallId,
+                        request.getActive()
+                );
+
+        return ResponseEntity.ok(response);
     }
 }

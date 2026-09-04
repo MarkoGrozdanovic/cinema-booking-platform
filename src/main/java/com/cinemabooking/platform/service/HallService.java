@@ -12,4 +12,9 @@ public interface HallService {
     );
 
     List<HallResponseDTO> getAllHalls();
+
+    HallResponseDTO updateHallStatus(
+            Long hallId,
+            boolean active
+    );
 }

@@ -34,4 +34,36 @@ public interface ScreeningRepository extends JpaRepository<Screening, Long> {
             @Param("now") LocalDateTime now,
             @Param("status") ScreeningStatus status
     );
+
+    @Query("""
+        SELECT CASE WHEN COUNT(s) > 0
+                    THEN true
+                    ELSE false
+               END
+        FROM Screening s
+        WHERE s.hall.cinema.id = :cinemaId
+          AND s.status = :status
+          AND s.startTime > :now
+        """)
+    boolean existsFutureScreeningForCinema(
+            @Param("cinemaId") Long cinemaId,
+            @Param("status") ScreeningStatus status,
+            @Param("now") LocalDateTime now
+    );
+
+    @Query("""
+        SELECT CASE WHEN COUNT(s) > 0
+                    THEN true
+                    ELSE false
+               END
+        FROM Screening s
+        WHERE s.hall.id = :hallId
+          AND s.status = :status
+          AND s.startTime > :now
+        """)
+    boolean existsFutureScreeningForHall(
+            @Param("hallId") Long hallId,
+            @Param("status") ScreeningStatus status,
+            @Param("now") LocalDateTime now
+    );
 }

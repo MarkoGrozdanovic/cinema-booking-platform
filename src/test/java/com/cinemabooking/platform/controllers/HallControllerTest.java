@@ -32,6 +32,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 @WebMvcTest(HallController.class)
 @Import({
@@ -285,5 +288,94 @@ class HallControllerTest {
                                 )
                         )
                 );
+    }
+
+    @Test
+    void shouldUpdateHallStatusAsAdmin()
+            throws Exception {
+        HallResponseDTO response =
+                HallResponseDTO.builder()
+                        .id(10L)
+                        .name("Hall 2")
+                        .hallType(HallType.STANDARD)
+                        .cinemaId(1L)
+                        .cinemaName("Central Cinema")
+                        .active(false)
+                        .numberOfSeats(18)
+                        .build();
+
+        when(hallService.updateHallStatus(
+                10L,
+                false
+        )).thenReturn(response);
+
+        mockMvc.perform(
+                        put("/api/admin/halls/10/status")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("""
+                                    {
+                                      "active": false
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")
+                        .value(10))
+                .andExpect(jsonPath("$.active")
+                        .value(false));
+
+        verify(hallService).updateHallStatus(
+                10L,
+                false
+        );
+    }
+
+    @Test
+    void shouldRejectHallStatusWithoutActiveValue()
+            throws Exception {
+        mockMvc.perform(
+                        put("/api/admin/halls/10/status")
+                                .with(authentication(
+                                        adminAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("{}")
+                )
+                .andExpect(status().isBadRequest());
+
+        verify(hallService, never())
+                .updateHallStatus(
+                        anyLong(),
+                        anyBoolean()
+                );
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenCustomerUpdatesHallStatus()
+            throws Exception {
+        mockMvc.perform(
+                        put("/api/admin/halls/10/status")
+                                .with(authentication(
+                                        customerAuthentication()
+                                ))
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content("""
+                                    {
+                                      "active": false
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(hallService);
     }
 }

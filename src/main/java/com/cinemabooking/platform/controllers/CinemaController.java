@@ -1,6 +1,7 @@
 package com.cinemabooking.platform.controllers;
 
 import com.cinemabooking.platform.model.request.CreateCinemaRequestDTO;
+import com.cinemabooking.platform.model.request.UpdateCinemaStatusRequestDTO;
 import com.cinemabooking.platform.model.response.CinemaResponseDTO;
 import com.cinemabooking.platform.service.CinemaService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -8,11 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -45,5 +42,20 @@ public class CinemaController {
         return ResponseEntity.ok(
                 cinemaService.getAllCinemas()
         );
+    }
+
+    @PutMapping("/{cinemaId}/status")
+    public ResponseEntity<CinemaResponseDTO> updateCinemaStatus(
+            @PathVariable Long cinemaId,
+            @Valid
+            @RequestBody UpdateCinemaStatusRequestDTO request
+    ) {
+        CinemaResponseDTO response =
+                cinemaService.updateCinemaStatus(
+                        cinemaId,
+                        request.getActive()
+                );
+
+        return ResponseEntity.ok(response);
     }
 }

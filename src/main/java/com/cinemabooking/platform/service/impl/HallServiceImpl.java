@@ -5,16 +5,19 @@ import com.cinemabooking.platform.exceptions.ResourceNotFoundException;
 import com.cinemabooking.platform.model.Cinema;
 import com.cinemabooking.platform.model.Hall;
 import com.cinemabooking.platform.model.Seat;
+import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.request.CreateHallRequestDTO;
 import com.cinemabooking.platform.model.request.CreateSeatRowRequestDTO;
 import com.cinemabooking.platform.model.response.HallResponseDTO;
 import com.cinemabooking.platform.repositories.CinemaRepository;
 import com.cinemabooking.platform.repositories.HallRepository;
+import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.service.HallService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +29,7 @@ public class HallServiceImpl implements HallService {
 
     private final HallRepository hallRepository;
     private final CinemaRepository cinemaRepository;
+    private final ScreeningRepository screeningRepository;
 
     @Override
     @Transactional
@@ -101,6 +105,48 @@ public class HallServiceImpl implements HallService {
                 .stream()
                 .map(this::toHallResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public HallResponseDTO updateHallStatus(
+            Long hallId,
+            boolean active
+    ) {
+        Hall hall = hallRepository
+                .findById(hallId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Hall with ID " + hallId
+                                        + " was not found"
+                        )
+                );
+
+        if (hall.isActive() == active) {
+            return toHallResponse(hall);
+        }
+
+        if (active && !hall.getCinema().isActive()) {
+            throw new BusinessException(
+                    "Hall cannot be activated while its cinema is inactive"
+            );
+        }
+
+        if (!active
+                && screeningRepository
+                .existsFutureScreeningForHall(
+                        hallId,
+                        ScreeningStatus.SCHEDULED,
+                        LocalDateTime.now()
+                )) {
+            throw new BusinessException(
+                    "Hall cannot be deactivated while it has future scheduled screenings"
+            );
+        }
+
+        hall.setActive(active);
+
+        return toHallResponse(hall);
     }
 
     private void validateUniqueRowLabels(

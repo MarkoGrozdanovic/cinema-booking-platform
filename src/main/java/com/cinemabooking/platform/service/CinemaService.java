@@ -12,4 +12,9 @@ public interface CinemaService {
     );
 
     List<CinemaResponseDTO> getAllCinemas();
+
+    CinemaResponseDTO updateCinemaStatus(
+            Long cinemaId,
+            boolean active
+    );
 }

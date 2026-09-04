@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getAllCinemas } from "../../api/cinemaApi";
 import type { Cinema } from "../../types/cinema";
+import { isAxiosError } from "axios";
+import { updateCinemaStatus } from "../../api/cinemaApi";
 
 function AdminCinemasPage() {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [updatingCinemaId, setUpdatingCinemaId] = useState<number | null>(null);
+
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +41,33 @@ function AdminCinemasPage() {
       cancelled = true;
     };
   }, []);
+
+  async function handleStatusChange(cinema: Cinema) {
+    if (cinema.active && !window.confirm(`Deactivate "${cinema.name}"?`)) {
+      return;
+    }
+
+    setUpdatingCinemaId(cinema.id);
+    setActionError(null);
+
+    try {
+      const updatedCinema = await updateCinemaStatus(cinema.id, !cinema.active);
+
+      setCinemas((currentCinemas) =>
+        currentCinemas.map((currentCinema) =>
+          currentCinema.id === updatedCinema.id ? updatedCinema : currentCinema,
+        ),
+      );
+    } catch (error) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data.message
+        : undefined;
+
+      setActionError(message ?? "Unable to update cinema status.");
+    } finally {
+      setUpdatingCinemaId(null);
+    }
+  }
 
   return (
     <section>
@@ -71,6 +104,12 @@ function AdminCinemasPage() {
         </div>
       )}
 
+      {actionError && (
+        <div className="mt-8 rounded-lg border border-red-500/40 bg-red-950/40 p-4 text-red-200">
+          {actionError}
+        </div>
+      )}
+
       {!isLoading && !error && cinemas.length > 0 && (
         <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {cinemas.map((cinema) => (
@@ -101,6 +140,23 @@ function AdminCinemasPage() {
                   {cinema.description}
                 </p>
               )}
+
+              <button
+                type="button"
+                disabled={updatingCinemaId === cinema.id}
+                onClick={() => void handleStatusChange(cinema)}
+                className={`mt-5 w-full rounded-lg border px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  cinema.active
+                    ? "border-red-500 text-red-300 hover:bg-red-950/40"
+                    : "border-emerald-500 text-emerald-300 hover:bg-emerald-950/40"
+                }`}
+              >
+                {updatingCinemaId === cinema.id
+                  ? "Updating..."
+                  : cinema.active
+                    ? "Deactivate"
+                    : "Activate"}
+              </button>
             </article>
           ))}
         </div>

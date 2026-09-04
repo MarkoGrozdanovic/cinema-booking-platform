@@ -14,3 +14,17 @@ export async function createCinema(
 
   return response.data;
 }
+
+export async function updateCinemaStatus(
+  cinemaId: number,
+  active: boolean,
+): Promise<Cinema> {
+  const response = await httpClient.put<Cinema>(
+    `/admin/cinemas/${cinemaId}/status`,
+    {
+      active,
+    },
+  );
+
+  return response.data;
+}

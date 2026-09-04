@@ -12,6 +12,7 @@ import com.cinemabooking.platform.model.request.CreateSeatRowRequestDTO;
 import com.cinemabooking.platform.model.response.HallResponseDTO;
 import com.cinemabooking.platform.repositories.CinemaRepository;
 import com.cinemabooking.platform.repositories.HallRepository;
+import com.cinemabooking.platform.repositories.ScreeningRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +32,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.ArgumentMatchers.eq;
+import com.cinemabooking.platform.model.enums.ScreeningStatus;
+
+import java.time.LocalDateTime;
 
 @ExtendWith(MockitoExtension.class)
 class HallServiceImplTest {
@@ -43,6 +49,9 @@ class HallServiceImplTest {
 
     @InjectMocks
     private HallServiceImpl hallService;
+
+    @Mock
+    private ScreeningRepository screeningRepository;
 
     @Test
     void createHall_shouldGenerateNormalizeAndSaveSeats() {
@@ -375,5 +384,117 @@ class HallServiceImplTest {
         seat.setSeatType(SeatType.STANDARD);
         seat.setActive(true);
         return seat;
+    }
+
+    @Test
+    void updateHallStatus_shouldDeactivateHallWithoutFutureScreenings() {
+        Hall hall = activeHall();
+
+        when(hallRepository.findById(10L))
+                .thenReturn(Optional.of(hall));
+
+        when(screeningRepository
+                .existsFutureScreeningForHall(
+                        eq(10L),
+                        eq(ScreeningStatus.SCHEDULED),
+                        any(LocalDateTime.class)
+                ))
+                .thenReturn(false);
+
+        HallResponseDTO response =
+                hallService.updateHallStatus(
+                        10L,
+                        false
+                );
+
+        assertFalse(hall.isActive());
+        assertFalse(response.isActive());
+    }
+
+    @Test
+    void updateHallStatus_shouldRejectDeactivationWithFutureScreenings() {
+        Hall hall = activeHall();
+
+        when(hallRepository.findById(10L))
+                .thenReturn(Optional.of(hall));
+
+        when(screeningRepository
+                .existsFutureScreeningForHall(
+                        eq(10L),
+                        eq(ScreeningStatus.SCHEDULED),
+                        any(LocalDateTime.class)
+                ))
+                .thenReturn(true);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> hallService.updateHallStatus(
+                        10L,
+                        false
+                )
+        );
+
+        assertEquals(
+                "Hall cannot be deactivated while it has future scheduled screenings",
+                exception.getMessage()
+        );
+
+        assertTrue(hall.isActive());
+    }
+
+    @Test
+    void updateHallStatus_shouldRejectActivationWhenCinemaIsInactive() {
+        Hall hall = activeHall();
+        hall.setActive(false);
+        hall.getCinema().setActive(false);
+
+        when(hallRepository.findById(10L))
+                .thenReturn(Optional.of(hall));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> hallService.updateHallStatus(
+                        10L,
+                        true
+                )
+        );
+
+        assertEquals(
+                "Hall cannot be activated while its cinema is inactive",
+                exception.getMessage()
+        );
+
+        assertFalse(hall.isActive());
+        verifyNoInteractions(screeningRepository);
+    }
+
+    @Test
+    void updateHallStatus_shouldActivateHallWhenCinemaIsActive() {
+        Hall hall = activeHall();
+        hall.setActive(false);
+
+        when(hallRepository.findById(10L))
+                .thenReturn(Optional.of(hall));
+
+        HallResponseDTO response =
+                hallService.updateHallStatus(
+                        10L,
+                        true
+                );
+
+        assertTrue(hall.isActive());
+        assertTrue(response.isActive());
+
+        verifyNoInteractions(screeningRepository);
+    }
+
+    private Hall activeHall() {
+        Hall hall = new Hall();
+        hall.setId(10L);
+        hall.setName("Hall 2");
+        hall.setHallType(HallType.STANDARD);
+        hall.setCinema(activeCinema());
+        hall.setActive(true);
+        return hall;
     }
 }
