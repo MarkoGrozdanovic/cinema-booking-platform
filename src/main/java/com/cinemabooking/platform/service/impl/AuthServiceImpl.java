@@ -11,6 +11,7 @@ import com.cinemabooking.platform.model.response.RegisteredUserResponseDTO;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.security.JwtService;
 import com.cinemabooking.platform.service.AuthService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,17 +19,12 @@ import org.springframework.stereotype.Service;
 import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
-    }
 
 
     @Override

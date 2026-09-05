@@ -31,7 +31,7 @@ function AppLayout() {
           <div className="flex items-center gap-5">
             {user ? (
               <>
-                {user?.role === "ADMIN" && (
+                {user?.role === "ADMIN" ? (
                   <NavLink
                     to="/admin"
                     className={({ isActive }) =>
@@ -42,10 +42,11 @@ function AppLayout() {
                   >
                     Admin
                   </NavLink>
+                ) : (
+                  <NavLink className={navigationLinkClass} to="/bookings">
+                    My bookings
+                  </NavLink>
                 )}
-                <NavLink className={navigationLinkClass} to="/bookings">
-                  My bookings
-                </NavLink>
 
                 <span className="text-sm text-slate-300">
                   {user.firstName} {user.lastName}

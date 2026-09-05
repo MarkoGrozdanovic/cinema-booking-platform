@@ -9,7 +9,7 @@ import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import java.util.List;
 
 
-public interface ScreeningSerivce {
+public interface ScreeningService {
     ScreeningResponseDTO createScreening(CreateScreeningRequestDTO request);
     List<ScreeningSeatResponseDTO> getScreeningSeats(
             Long screeningId
@@ -19,4 +19,10 @@ public interface ScreeningSerivce {
     List<MovieOptionResponseDTO> getActiveMovieOptions();
 
     List<HallOptionResponseDTO> getActiveHallOptions();
+
+    List<ScreeningResponseDTO> getAllScreenings();
+
+    int completeEndedScreenings();
+
+    ScreeningResponseDTO cancelScreening(Long screeningId);
 }

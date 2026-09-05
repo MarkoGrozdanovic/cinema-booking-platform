@@ -50,6 +50,9 @@ class ScreeningServiceImplTest {
     @InjectMocks
     private ScreeningServiceImpl screeningService;
 
+    @Mock
+    private BookingRepository bookingRepository;
+
     @Test
     void createScreening_shouldRejectRequest_whenMovieIsInactive() {
         // Arrange
@@ -682,5 +685,242 @@ class ScreeningServiceImplTest {
                         response.get(1).getCinemaName()
                 )
         );
+    }
+
+    @Test
+    void completeEndedScreenings_shouldUpdateScheduledScreenings() {
+        when(screeningRepository.completeEndedScreenings(
+                eq(ScreeningStatus.SCHEDULED),
+                eq(ScreeningStatus.COMPLETED),
+                any(LocalDateTime.class)
+        )).thenReturn(2);
+
+        int updatedScreenings =
+                screeningService.completeEndedScreenings();
+
+        assertEquals(2, updatedScreenings);
+
+        verify(screeningRepository).completeEndedScreenings(
+                eq(ScreeningStatus.SCHEDULED),
+                eq(ScreeningStatus.COMPLETED),
+                any(LocalDateTime.class)
+        );
+    }
+
+    @Test
+    void cancelScreening_shouldCancelFutureScreeningWithoutActiveBookings() {
+        Long screeningId = 1L;
+
+        Screening screening = createValidScreening();
+        screening.setId(screeningId);
+        screening.setStatus(ScreeningStatus.SCHEDULED);
+        screening.setStartTime(LocalDateTime.now().plusDays(1));
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.of(screening));
+
+        when(bookingRepository.existsByScreeningIdAndStatusIn(
+                eq(screeningId),
+                anyCollection()
+        )).thenReturn(false);
+
+        ScreeningResponseDTO response =
+                screeningService.cancelScreening(screeningId);
+
+        assertEquals(ScreeningStatus.CANCELLED, screening.getStatus());
+        assertEquals("CANCELLED", response.getStatus());
+
+        verify(screeningRepository)
+                .findByIdWithLock(screeningId);
+
+        verify(bookingRepository)
+                .existsByScreeningIdAndStatusIn(
+                        eq(screeningId),
+                        anyCollection()
+                );
+    }
+
+    @Test
+    void cancelScreening_shouldRejectScreeningWithActiveBookings() {
+        Long screeningId = 1L;
+
+        Screening screening = createValidScreening();
+        screening.setId(screeningId);
+        screening.setStatus(ScreeningStatus.SCHEDULED);
+        screening.setStartTime(LocalDateTime.now().plusDays(1));
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.of(screening));
+
+        when(bookingRepository.existsByScreeningIdAndStatusIn(
+                eq(screeningId),
+                anyCollection()
+        )).thenReturn(true);
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> screeningService.cancelScreening(screeningId)
+        );
+
+        assertEquals(
+                "Screening cannot be cancelled while it has active bookings",
+                exception.getMessage()
+        );
+
+        assertEquals(
+                ScreeningStatus.SCHEDULED,
+                screening.getStatus()
+        );
+
+        verify(screeningRepository)
+                .findByIdWithLock(screeningId);
+    }
+    @Test
+    void cancelScreening_shouldRejectScreeningThatAlreadyStarted() {
+        Long screeningId = 1L;
+
+        Screening screening = createValidScreening();
+        screening.setId(screeningId);
+        screening.setStatus(ScreeningStatus.SCHEDULED);
+        screening.setStartTime(LocalDateTime.now().minusMinutes(10));
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.of(screening));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> screeningService.cancelScreening(screeningId)
+        );
+
+        assertEquals(
+                "A screening that has already started cannot be cancelled",
+                exception.getMessage()
+        );
+
+        assertEquals(
+                ScreeningStatus.SCHEDULED,
+                screening.getStatus()
+        );
+
+        verify(bookingRepository, never())
+                .existsByScreeningIdAndStatusIn(
+                        anyLong(),
+                        anyCollection()
+                );
+    }
+
+    @Test
+    void cancelScreening_shouldThrowWhenScreeningDoesNotExist() {
+        Long screeningId = 999L;
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> screeningService.cancelScreening(screeningId)
+        );
+
+        assertEquals(
+                "Screening with ID 999 was not found",
+                exception.getMessage()
+        );
+
+        verify(screeningRepository)
+                .findByIdWithLock(screeningId);
+
+        verifyNoInteractions(bookingRepository);
+    }
+
+    @Test
+    void cancelScreening_shouldRejectAlreadyCancelledScreening() {
+        Long screeningId = 1L;
+
+        Screening screening = createValidScreening();
+        screening.setId(screeningId);
+        screening.setStatus(ScreeningStatus.CANCELLED);
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.of(screening));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> screeningService.cancelScreening(screeningId)
+        );
+
+        assertEquals(
+                "Only scheduled screenings can be cancelled",
+                exception.getMessage()
+        );
+
+        assertEquals(
+                ScreeningStatus.CANCELLED,
+                screening.getStatus()
+        );
+
+        verify(screeningRepository)
+                .findByIdWithLock(screeningId);
+
+        verifyNoInteractions(bookingRepository);
+    }
+
+    @Test
+    void cancelScreening_shouldRejectCompletedScreening() {
+        Long screeningId = 1L;
+
+        Screening screening = createValidScreening();
+        screening.setId(screeningId);
+        screening.setStatus(ScreeningStatus.COMPLETED);
+
+        when(screeningRepository.findByIdWithLock(screeningId))
+                .thenReturn(Optional.of(screening));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> screeningService.cancelScreening(screeningId)
+        );
+
+        assertEquals(
+                "Only scheduled screenings can be cancelled",
+                exception.getMessage()
+        );
+
+        assertEquals(
+                ScreeningStatus.COMPLETED,
+                screening.getStatus()
+        );
+
+        verify(screeningRepository)
+                .findByIdWithLock(screeningId);
+
+        verifyNoInteractions(bookingRepository);
+    }
+
+    private Screening createValidScreening() {
+        Movie movie = new Movie();
+        movie.setId(10L);
+        movie.setTitle("Interstellar");
+
+        Cinema cinema = new Cinema();
+        cinema.setId(20L);
+        cinema.setName("CineStar");
+
+        Hall hall = new Hall();
+        hall.setId(30L);
+        hall.setName("Hall 1");
+        hall.setCinema(cinema);
+
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1);
+
+        Screening screening = new Screening();
+        screening.setMovie(movie);
+        screening.setHall(hall);
+        screening.setStartTime(startTime);
+        screening.setEndTime(startTime.plusMinutes(169));
+        screening.setHallAvailableAt(startTime.plusMinutes(184));
+        screening.setBasePrice(new BigDecimal("700.00"));
+        screening.setStatus(ScreeningStatus.SCHEDULED);
+
+        return screening;
     }
 }

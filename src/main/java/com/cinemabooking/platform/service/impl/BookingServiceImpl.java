@@ -16,6 +16,7 @@ import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.service.BookingService;
 import com.cinemabooking.platform.service.PaymentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
 
     private final UserRepository userRepository;
@@ -34,14 +36,6 @@ public class BookingServiceImpl implements BookingService {
     private final ScreeningSeatRepository screeningSeatRepository;
     private final BookingRepository bookingRepository;
     private final PaymentService paymentService;
-
-    public BookingServiceImpl(UserRepository userRepository, ScreeningRepository screeningRepository, ScreeningSeatRepository screeningSeatRepository, BookingRepository bookingRepository, PaymentService paymentService) {
-        this.userRepository = userRepository;
-        this.screeningRepository = screeningRepository;
-        this.screeningSeatRepository = screeningSeatRepository;
-        this.bookingRepository = bookingRepository;
-        this.paymentService = paymentService;
-    }
 
 
     @Override

@@ -2,13 +2,17 @@ package com.cinemabooking.platform.repositories;
 
 import com.cinemabooking.platform.model.Screening;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ScreeningRepository extends JpaRepository<Screening, Long> {
@@ -65,5 +69,31 @@ public interface ScreeningRepository extends JpaRepository<Screening, Long> {
             @Param("hallId") Long hallId,
             @Param("status") ScreeningStatus status,
             @Param("now") LocalDateTime now
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE Screening s
+        SET s.status = :completedStatus
+        WHERE s.status = :scheduledStatus
+                  AND s.endTime <= :now
+    """)
+    int completeEndedScreenings(
+            @Param("scheduledStatus") ScreeningStatus scheduledStatus,
+            @Param("completedStatus") ScreeningStatus completedStatus,
+            @Param("now") LocalDateTime now
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT s
+        FROM Screening s
+        JOIN FETCH s.movie
+        JOIN FETCH s.hall h
+        JOIN FETCH h.cinema
+        WHERE s.id = :screeningId
+        """)
+    Optional<Screening> findByIdWithLock(
+            @Param("screeningId") Long screeningId
     );
 }

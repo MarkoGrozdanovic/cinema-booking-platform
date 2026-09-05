@@ -5,7 +5,7 @@ import com.cinemabooking.platform.model.response.HallOptionResponseDTO;
 import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
-import com.cinemabooking.platform.service.ScreeningSerivce;
+import com.cinemabooking.platform.service.ScreeningService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -22,9 +22,9 @@ import java.util.List;
 @RequestMapping("/api")
 public class ScreeningController {
 
-    private final ScreeningSerivce screeningService;
+    private final ScreeningService screeningService;
 
-    public ScreeningController(ScreeningSerivce screeningSerivce) {
+    public ScreeningController(ScreeningService screeningSerivce) {
         this.screeningService = screeningSerivce;
     }
 

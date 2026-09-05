@@ -3,6 +3,7 @@ package com.cinemabooking.platform.service.impl;
 import com.cinemabooking.platform.config.AppConstants;
 import com.cinemabooking.platform.exceptions.*;
 import com.cinemabooking.platform.model.*;
+import com.cinemabooking.platform.model.enums.BookingStatus;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
@@ -12,7 +13,9 @@ import com.cinemabooking.platform.model.response.MovieOptionResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningResponseDTO;
 import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.repositories.*;
-import com.cinemabooking.platform.service.ScreeningSerivce;
+import com.cinemabooking.platform.service.ScreeningService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -21,21 +24,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-public class ScreeningServiceImpl implements ScreeningSerivce {
+@RequiredArgsConstructor
+public class ScreeningServiceImpl implements ScreeningService {
 
     private final MovieRepository movieRepository;
     private final HallRepository hallRepository;
     private final SeatRepository seatRepository;
     private final ScreeningRepository screeningRepository;
     private final ScreeningSeatRepository screeningSeatRepository;
-
-    public ScreeningServiceImpl(MovieRepository movieRepository, HallRepository hallRepository, SeatRepository seatRepository, ScreeningRepository screeningRepository, ScreeningSeatRepository screeningSeatRepository) {
-        this.movieRepository = movieRepository;
-        this.hallRepository = hallRepository;
-        this.seatRepository = seatRepository;
-        this.screeningRepository = screeningRepository;
-        this.screeningSeatRepository = screeningSeatRepository;
-    }
+    private final BookingRepository bookingRepository;
 
     @Override
     @Transactional
@@ -203,6 +200,72 @@ public class ScreeningServiceImpl implements ScreeningSerivce {
                                 .build()
                 )
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScreeningResponseDTO> getAllScreenings() {
+        return screeningRepository
+                .findAll(
+                        Sort.by(
+                                Sort.Direction.ASC,
+                                "startTime"
+                        )
+                )
+                .stream()
+                .map(this::toScreeningResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public int completeEndedScreenings() {
+        return screeningRepository.completeEndedScreenings(
+                ScreeningStatus.SCHEDULED,
+                ScreeningStatus.COMPLETED,
+                LocalDateTime.now()
+        );
+    }
+
+    @Override
+    @Transactional
+    public ScreeningResponseDTO cancelScreening(Long screeningId) {
+        Screening screening = screeningRepository
+                .findByIdWithLock(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Screening with ID " + screeningId + " was not found"
+                ));
+
+        if (screening.getStatus() != ScreeningStatus.SCHEDULED) {
+            throw new BusinessException(
+                    "Only scheduled screenings can be cancelled"
+            );
+        }
+
+        if (!screening.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(
+                    "A screening that has already started cannot be cancelled"
+            );
+        }
+
+        boolean hasActiveBookings =
+                bookingRepository.existsByScreeningIdAndStatusIn(
+                        screeningId,
+                        List.of(
+                                BookingStatus.PENDING_PAYMENT,
+                                BookingStatus.CONFIRMED
+                        )
+                );
+
+        if (hasActiveBookings) {
+            throw new BusinessException(
+                    "Screening cannot be cancelled while it has active bookings"
+            );
+        }
+
+        screening.setStatus(ScreeningStatus.CANCELLED);
+
+        return toScreeningResponse(screening);
     }
 
     private ScreeningSeatResponseDTO toScreeningSeatResponse(

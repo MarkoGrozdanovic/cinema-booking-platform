@@ -14,7 +14,7 @@ import com.cinemabooking.platform.model.response.ScreeningSeatResponseDTO;
 import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.security.JwtService;
 import com.cinemabooking.platform.security.RestSecurityExceptionHandler;
-import com.cinemabooking.platform.service.ScreeningSerivce;
+import com.cinemabooking.platform.service.ScreeningService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -54,7 +54,7 @@ class ScreeningControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ScreeningSerivce screeningService;
+    private ScreeningService screeningService;
 
     @Test
     void shouldCreateScreening() throws Exception {

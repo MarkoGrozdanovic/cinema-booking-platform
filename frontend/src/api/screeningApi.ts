@@ -42,3 +42,17 @@ export async function getActiveHallOptions(): Promise<HallOption[]> {
 
   return response.data;
 }
+
+export async function getAdminScreenings(): Promise<Screening[]> {
+  const response = await httpClient.get<Screening[]>("/admin/screenings");
+
+  return response.data;
+}
+
+export async function cancelScreening(screeningId: number): Promise<Screening> {
+  const response = await httpClient.patch<Screening>(
+    `/admin/screenings/${screeningId}/cancel`,
+  );
+
+  return response.data;
+}
