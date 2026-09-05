@@ -8,6 +8,7 @@ import com.cinemabooking.platform.model.enums.BookingStatus;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
+import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import com.cinemabooking.platform.model.response.BookedSeatResponseDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
@@ -151,6 +152,12 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(BookingStatus.EXPIRED);
         releaseHeldSeats(booking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminBookingResponseDTO> getAllBookingsForAdmin() {
+        return bookingRepository.findAllAdminBookingResponses();
     }
 
     private void releaseHeldSeats(Booking booking) {

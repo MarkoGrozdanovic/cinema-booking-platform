@@ -4,6 +4,7 @@ import com.cinemabooking.platform.exceptions.*;
 import com.cinemabooking.platform.model.*;
 import com.cinemabooking.platform.model.enums.*;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
+import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.ScreeningRepository;
@@ -906,5 +907,31 @@ public class BookingServiceImplTest {
         booking.addBookingItem(bookingItem);
 
         return booking;
+    }
+
+    @Test
+    void getAllBookingsForAdmin_shouldReturnRepositoryResults() {
+        AdminBookingResponseDTO booking =
+                AdminBookingResponseDTO.builder()
+                        .id(1L)
+                        .bookingReference("BOOKING-001")
+                        .customerName("Marko Grozdanovic")
+                        .customerEmail("marko@example.com")
+                        .bookingStatus(BookingStatus.CONFIRMED)
+                        .paymentStatus(PaymentStatus.SUCCEEDED)
+                        .totalPrice(new BigDecimal("1400.00"))
+                        .build();
+
+        when(bookingRepository.findAllAdminBookingResponses())
+                .thenReturn(List.of(booking));
+
+        List<AdminBookingResponseDTO> response =
+                bookingService.getAllBookingsForAdmin();
+
+        assertEquals(1, response.size());
+        assertSame(booking, response.get(0));
+
+        verify(bookingRepository)
+                .findAllAdminBookingResponses();
     }
 }

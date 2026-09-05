@@ -15,7 +15,7 @@ function AdminDashboardPage() {
         </p>
       </div>
 
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
+      <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-xl border border-slate-700 bg-slate-800 p-6">
           <h2 className="text-xl font-semibold">Screenings</h2>
 
@@ -68,6 +68,21 @@ function AdminDashboardPage() {
               Manage halls
             </Link>
           </div>
+        </article>
+
+        <article className="rounded-xl border border-slate-700 bg-slate-800 p-6">
+          <h2 className="text-xl font-semibold">Bookings</h2>
+
+          <p className="mt-3 text-sm text-slate-400">
+            Review customer bookings and monitor their payment status.
+          </p>
+
+          <Link
+            to="/admin/bookings"
+            className="mt-5 inline-block rounded-lg border border-amber-500 px-4 py-2 font-semibold text-amber-300 transition hover:bg-amber-950/30"
+          >
+            View bookings
+          </Link>
         </article>
       </div>
     </section>

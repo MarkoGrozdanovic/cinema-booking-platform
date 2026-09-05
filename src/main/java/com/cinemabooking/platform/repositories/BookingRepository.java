@@ -3,6 +3,7 @@ package com.cinemabooking.platform.repositories;
 import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.Booking;
 import com.cinemabooking.platform.model.enums.BookingStatus;
+import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -67,4 +68,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             Long screeningId,
             Collection<BookingStatus> statuses
     );
+
+    @Query("""
+        SELECT new com.cinemabooking.platform.model.response.AdminBookingResponseDTO(
+            b.id,
+            b.bookingReference,
+            b.user.id,
+            CONCAT(CONCAT(b.user.firstName, ' '), b.user.lastName),
+            b.user.email,
+            b.screening.movie.title,
+            b.screening.hall.cinema.name,
+            b.screening.hall.name,
+            b.screening.startTime,
+            b.status,
+            p.status,
+            b.totalPrice,
+            b.createdAt
+        )
+        FROM Booking b
+        LEFT JOIN Payment p
+            ON p.booking = b
+        ORDER BY b.createdAt DESC
+        """)
+    List<AdminBookingResponseDTO> findAllAdminBookingResponses();
 }

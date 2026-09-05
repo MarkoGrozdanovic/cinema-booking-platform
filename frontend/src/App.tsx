@@ -19,6 +19,7 @@ import CreateCinemaPage from "./pages/admin/CreateCinemaPage";
 import AdminHallsPage from "./pages/admin/AdminHallsPage";
 import CreateHallPage from "./pages/admin/CreateHallPage";
 import AdminScreeningsPage from "./pages/admin/AdminScreeningPage";
+import AdminBookingsPage from "./pages/admin/AdminBookingsPage";
 
 function App() {
   return (
@@ -49,6 +50,8 @@ function App() {
           <Route path="admin/halls/new" element={<CreateHallPage />} />
 
           <Route path="/admin/screenings" element={<AdminScreeningsPage />} />
+
+          <Route path="/admin/bookings" element={<AdminBookingsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
