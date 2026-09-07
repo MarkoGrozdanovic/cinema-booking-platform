@@ -1,5 +1,6 @@
 package com.cinemabooking.platform.service;
 
+import com.cinemabooking.platform.model.enums.PaymentCancellationOutcome;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
 
@@ -13,7 +14,11 @@ public interface PaymentService {
             String signature
     );
 
-    void cancelOpenPaymentForBooking(Long bookingId);
+    PaymentCancellationOutcome cancelOpenPaymentForBooking(
+            Long bookingId
+    );
 
-    void cancelExpiredBookingPayment(Long bookingId);
+    PaymentCancellationOutcome cancelExpiredBookingPayment(
+            Long bookingId
+    );
 }

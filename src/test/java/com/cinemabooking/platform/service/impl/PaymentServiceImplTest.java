@@ -9,6 +9,7 @@ import com.cinemabooking.platform.model.Payment;
 import com.cinemabooking.platform.model.ScreeningSeat;
 import com.cinemabooking.platform.model.enums.BookingStatus;
 import com.cinemabooking.platform.model.enums.PaymentProvider;
+import com.cinemabooking.platform.model.enums.PaymentCancellationOutcome;
 import com.cinemabooking.platform.model.enums.PaymentStatus;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
@@ -286,24 +287,42 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void cancelOpenPaymentForBooking_shouldDoNothingWithoutPayment() {
+    void cancelOpenPaymentForBooking_shouldReturnNoPaymentWhenPaymentDoesNotExist() {
         when(paymentRepository.findByBookingId(5L))
                 .thenReturn(Optional.empty());
 
-        paymentService.cancelOpenPaymentForBooking(5L);
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
 
+        assertEquals(PaymentCancellationOutcome.NO_PAYMENT, outcome);
         verifyNoInteractions(stripeClient);
     }
 
     @Test
-    void cancelOpenPaymentForBooking_shouldIgnoreSucceededPayment() {
+    void cancelOpenPaymentForBooking_shouldReturnPaymentSucceededForLocalSucceededPayment() {
         Payment payment = payment(PaymentStatus.SUCCEEDED, validPendingBooking());
         when(paymentRepository.findByBookingId(5L))
                 .thenReturn(Optional.of(payment));
 
-        paymentService.cancelOpenPaymentForBooking(5L);
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
 
+        assertEquals(PaymentCancellationOutcome.PAYMENT_SUCCEEDED, outcome);
         assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+        verifyNoInteractions(stripeClient);
+    }
+
+    @Test
+    void cancelOpenPaymentForBooking_shouldReturnAlreadyCancelledForLocalCancelledPayment() {
+        Payment payment = payment(PaymentStatus.CANCELLED, validPendingBooking());
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.of(payment));
+
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
+
+        assertEquals(PaymentCancellationOutcome.ALREADY_CANCELLED, outcome);
+        assertEquals(PaymentStatus.CANCELLED, payment.getStatus());
         verifyNoInteractions(stripeClient);
     }
 
@@ -311,15 +330,22 @@ class PaymentServiceImplTest {
     void cancelOpenPaymentForBooking_shouldCancelStripePayment()
             throws StripeException {
         Payment payment = payment(PaymentStatus.PENDING, validPendingBooking());
+        PaymentIntent stripePaymentIntent = new PaymentIntent();
+        stripePaymentIntent.setStatus("requires_payment_method");
+
         when(paymentRepository.findByBookingId(5L))
                 .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenReturn(stripePaymentIntent);
         when(stripeClient.v1().paymentIntents().cancel(
                 eq("pi_test"),
                 any(PaymentIntentCancelParams.class)
         )).thenReturn(new PaymentIntent());
 
-        paymentService.cancelOpenPaymentForBooking(5L);
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
 
+        assertEquals(PaymentCancellationOutcome.CANCELLED, outcome);
         assertEquals(PaymentStatus.CANCELLED, payment.getStatus());
 
         ArgumentCaptor<PaymentIntentCancelParams> captor =
@@ -336,15 +362,22 @@ class PaymentServiceImplTest {
     void cancelExpiredBookingPayment_shouldUseAbandonedReason()
             throws StripeException {
         Payment payment = payment(PaymentStatus.FAILED, validPendingBooking());
+        PaymentIntent stripePaymentIntent = new PaymentIntent();
+        stripePaymentIntent.setStatus("requires_payment_method");
+
         when(paymentRepository.findByBookingId(5L))
                 .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenReturn(stripePaymentIntent);
         when(stripeClient.v1().paymentIntents().cancel(
                 eq("pi_test"),
                 any(PaymentIntentCancelParams.class)
         )).thenReturn(new PaymentIntent());
 
-        paymentService.cancelExpiredBookingPayment(5L);
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelExpiredBookingPayment(5L);
 
+        assertEquals(PaymentCancellationOutcome.CANCELLED, outcome);
         assertEquals(PaymentStatus.CANCELLED, payment.getStatus());
 
         ArgumentCaptor<PaymentIntentCancelParams> captor =
@@ -361,9 +394,14 @@ class PaymentServiceImplTest {
     void cancelOpenPaymentForBooking_shouldKeepLocalStatusWhenStripeFails()
             throws StripeException {
         Payment payment = payment(PaymentStatus.PENDING, validPendingBooking());
+        PaymentIntent stripePaymentIntent = new PaymentIntent();
+        stripePaymentIntent.setStatus("requires_payment_method");
         StripeException stripeException = mock(StripeException.class);
+
         when(paymentRepository.findByBookingId(5L))
                 .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenReturn(stripePaymentIntent);
         when(stripeClient.v1().paymentIntents().cancel(
                 eq("pi_test"),
                 any(PaymentIntentCancelParams.class)
@@ -376,6 +414,97 @@ class PaymentServiceImplTest {
 
         assertEquals("Unable to cancel the payment", exception.getMessage());
         assertEquals(PaymentStatus.PENDING, payment.getStatus());
+    }
+
+    @Test
+    void cancelOpenPaymentForBooking_shouldSynchronizeSucceededStripePayment()
+            throws StripeException {
+        Booking booking = validPendingBooking();
+        ScreeningSeat firstSeat = heldSeat();
+        ScreeningSeat secondSeat = heldSeat();
+        addItem(booking, firstSeat);
+        addItem(booking, secondSeat);
+        Payment payment = payment(PaymentStatus.PENDING, booking);
+
+        PaymentIntent stripePaymentIntent = stripePaymentIntent(
+                "pi_test",
+                160000L,
+                "rsd",
+                "secret"
+        );
+        stripePaymentIntent.setStatus("succeeded");
+
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenReturn(stripePaymentIntent);
+
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
+
+        assertAll(
+                () -> assertEquals(
+                        PaymentCancellationOutcome.PAYMENT_SUCCEEDED,
+                        outcome
+                ),
+                () -> assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus()),
+                () -> assertEquals(BookingStatus.CONFIRMED, booking.getStatus()),
+                () -> assertEquals(ScreeningSeatStatus.SOLD, firstSeat.getStatus()),
+                () -> assertEquals(ScreeningSeatStatus.SOLD, secondSeat.getStatus()),
+                () -> assertNull(firstSeat.getReservedUntil()),
+                () -> assertNull(secondSeat.getReservedUntil())
+        );
+
+        verify(stripeClient.v1().paymentIntents(), never()).cancel(
+                any(String.class),
+                any(PaymentIntentCancelParams.class)
+        );
+    }
+
+    @Test
+    void cancelOpenPaymentForBooking_shouldSynchronizeCancelledStripePayment()
+            throws StripeException {
+        Payment payment = payment(PaymentStatus.PENDING, validPendingBooking());
+        PaymentIntent stripePaymentIntent = new PaymentIntent();
+        stripePaymentIntent.setStatus("canceled");
+
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenReturn(stripePaymentIntent);
+
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(5L);
+
+        assertEquals(PaymentCancellationOutcome.ALREADY_CANCELLED, outcome);
+        assertEquals(PaymentStatus.CANCELLED, payment.getStatus());
+        verify(stripeClient.v1().paymentIntents(), never()).cancel(
+                any(String.class),
+                any(PaymentIntentCancelParams.class)
+        );
+    }
+
+    @Test
+    void cancelOpenPaymentForBooking_shouldKeepLocalStatusWhenStripeRetrievalFails()
+            throws StripeException {
+        Payment payment = payment(PaymentStatus.PENDING, validPendingBooking());
+        StripeException stripeException = mock(StripeException.class);
+
+        when(paymentRepository.findByBookingId(5L))
+                .thenReturn(Optional.of(payment));
+        when(stripeClient.v1().paymentIntents().retrieve("pi_test"))
+                .thenThrow(stripeException);
+
+        assertThrows(
+                BusinessException.class,
+                () -> paymentService.cancelOpenPaymentForBooking(5L)
+        );
+
+        assertEquals(PaymentStatus.PENDING, payment.getStatus());
+        verify(stripeClient.v1().paymentIntents(), never()).cancel(
+                any(String.class),
+                any(PaymentIntentCancelParams.class)
+        );
     }
 
     @Test

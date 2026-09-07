@@ -7,10 +7,7 @@ import com.cinemabooking.platform.model.Booking;
 import com.cinemabooking.platform.model.BookingItem;
 import com.cinemabooking.platform.model.Payment;
 import com.cinemabooking.platform.model.ScreeningSeat;
-import com.cinemabooking.platform.model.enums.BookingStatus;
-import com.cinemabooking.platform.model.enums.PaymentProvider;
-import com.cinemabooking.platform.model.enums.PaymentStatus;
-import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
+import com.cinemabooking.platform.model.enums.*;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
@@ -147,8 +144,10 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void cancelOpenPaymentForBooking(Long bookingId) {
-        cancelPaymentForBooking(
+    public PaymentCancellationOutcome cancelOpenPaymentForBooking(
+            Long bookingId
+    ) {
+        return cancelPaymentForBooking(
                 bookingId,
                 PaymentIntentCancelParams
                         .CancellationReason
@@ -158,8 +157,10 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void cancelExpiredBookingPayment(Long bookingId) {
-        cancelPaymentForBooking(
+    public PaymentCancellationOutcome cancelExpiredBookingPayment(
+            Long bookingId
+    ) {
+        return cancelPaymentForBooking(
                 bookingId,
                 PaymentIntentCancelParams
                         .CancellationReason
@@ -167,7 +168,7 @@ public class PaymentServiceImpl implements PaymentService {
         );
     }
 
-    private void cancelPaymentForBooking(
+    private PaymentCancellationOutcome cancelPaymentForBooking(
             Long bookingId,
             PaymentIntentCancelParams.CancellationReason reason
     ) {
@@ -176,17 +177,62 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElse(null);
 
         if (payment == null) {
-            return;
+            return PaymentCancellationOutcome.NO_PAYMENT;
         }
 
-        if (payment.getStatus() == PaymentStatus.SUCCEEDED
-                || payment.getStatus() == PaymentStatus.CANCELLED) {
-            return;
+        if (payment.getStatus() == PaymentStatus.SUCCEEDED) {
+            return PaymentCancellationOutcome.PAYMENT_SUCCEEDED;
+        }
+
+        if (payment.getStatus() == PaymentStatus.CANCELLED) {
+            return PaymentCancellationOutcome.ALREADY_CANCELLED;
+        }
+
+        PaymentIntent stripePaymentIntent =
+                retrieveStripePaymentIntent(payment);
+
+        if ("succeeded".equals(stripePaymentIntent.getStatus())) {
+            synchronizeSuccessfulPayment(
+                    payment,
+                    stripePaymentIntent
+            );
+
+            return PaymentCancellationOutcome.PAYMENT_SUCCEEDED;
+        }
+
+        if ("canceled".equals(stripePaymentIntent.getStatus())) {
+            payment.setStatus(PaymentStatus.CANCELLED);
+
+            return PaymentCancellationOutcome.ALREADY_CANCELLED;
         }
 
         cancelStripePaymentIntent(payment, reason);
 
         payment.setStatus(PaymentStatus.CANCELLED);
+
+        return PaymentCancellationOutcome.CANCELLED;
+    }
+
+    private void synchronizeSuccessfulPayment(
+            Payment payment,
+            PaymentIntent stripePaymentIntent
+    ) {
+        validateStripePayment(payment, stripePaymentIntent);
+
+        Booking booking = payment.getBooking();
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            payment.setStatus(PaymentStatus.SUCCEEDED);
+            return;
+        }
+
+        validateBookingCanBeConfirmed(booking);
+        validateHeldSeats(booking);
+
+        payment.setStatus(PaymentStatus.SUCCEEDED);
+        booking.setStatus(BookingStatus.CONFIRMED);
+
+        markSeatsAsSold(booking);
     }
 
     private void cancelStripePaymentIntent(
@@ -348,17 +394,10 @@ public class PaymentServiceImpl implements PaymentService {
             return;
         }
 
-        validateStripePayment(payment, stripePaymentIntent);
-
-        Booking booking = payment.getBooking();
-
-        validateBookingCanBeConfirmed(booking);
-        validateHeldSeats(booking);
-
-        payment.setStatus(PaymentStatus.SUCCEEDED);
-        booking.setStatus(BookingStatus.CONFIRMED);
-
-        markSeatsAsSold(booking);
+        synchronizeSuccessfulPayment(
+                payment,
+                stripePaymentIntent
+        );
     }
 
     private void validateStripePayment(

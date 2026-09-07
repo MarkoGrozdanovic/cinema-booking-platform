@@ -100,7 +100,9 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    @Transactional
+    @Transactional(
+            noRollbackFor = PaymentAlreadySucceededException.class
+    )
     public void cancelBooking(Long bookingId, Long userId) {
         Booking booking = bookingRepository.findByIdAndUserId(bookingId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -113,7 +115,17 @@ public class BookingServiceImpl implements BookingService {
             );
         }
 
-        paymentService.cancelOpenPaymentForBooking(booking.getId());
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelOpenPaymentForBooking(
+                        booking.getId()
+                );
+
+        if (outcome
+                == PaymentCancellationOutcome.PAYMENT_SUCCEEDED) {
+            throw new PaymentAlreadySucceededException(
+                    "The booking cannot be cancelled because its payment has already succeeded"
+            );
+        }
 
         booking.setStatus(BookingStatus.CANCELLED);
 
@@ -148,9 +160,15 @@ public class BookingServiceImpl implements BookingService {
             return;
         }
 
-        paymentService.cancelExpiredBookingPayment(
-                booking.getId()
-        );
+        PaymentCancellationOutcome outcome =
+                paymentService.cancelExpiredBookingPayment(
+                        booking.getId()
+                );
+
+        if (outcome
+                == PaymentCancellationOutcome.PAYMENT_SUCCEEDED) {
+            return;
+        }
 
         booking.setStatus(BookingStatus.EXPIRED);
         releaseHeldSeats(booking);
