@@ -4,6 +4,7 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router";
 
 interface PaymentFormProps {
   bookingId: number;
@@ -19,6 +20,8 @@ function PaymentForm({ bookingId }: PaymentFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
+
+    const navigate = useNavigate();
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       event.preventDefault();
@@ -39,7 +42,7 @@ function PaymentForm({ bookingId }: PaymentFormProps) {
         });
 
         if (result.error) {
-          setError(result.error.message ?? "Unable to complete the payment.");
+          navigate(`/payment/failed?bookingId=${bookingId}`);
         }
       } catch (error) {
         setError(

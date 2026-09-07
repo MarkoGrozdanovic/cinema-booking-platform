@@ -20,6 +20,7 @@ import AdminHallsPage from "./pages/admin/AdminHallsPage";
 import CreateHallPage from "./pages/admin/CreateHallPage";
 import AdminScreeningsPage from "./pages/admin/AdminScreeningPage";
 import AdminBookingsPage from "./pages/admin/AdminBookingsPage";
+import PaymentFailedPage from "./pages/PaymentFailedPage";
 
 function App() {
   return (
@@ -65,6 +66,8 @@ function App() {
           <Route path="bookings/:bookingId/payment" element={<PaymentPage />} />
 
           <Route path="payment/success" element={<PaymentSuccessPage />} />
+
+          <Route path="payment/failed" element={<PaymentFailedPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
