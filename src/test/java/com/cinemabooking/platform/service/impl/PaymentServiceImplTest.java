@@ -14,6 +14,7 @@ import com.cinemabooking.platform.model.enums.PaymentStatus;
 import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
+import com.cinemabooking.platform.model.response.PaymentStatusResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.PaymentRepository;
 import com.stripe.Stripe;
@@ -909,5 +910,71 @@ class PaymentServiceImplTest {
         );
 
         return "t=" + timestamp + ",v1=" + signature;
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnBookingAndPaymentStatuses() {
+        Booking booking = validPendingBooking();
+
+        when(bookingRepository.findByIdAndUserId(5L, 2L))
+                .thenReturn(Optional.of(booking));
+
+        when(paymentRepository.findStatusByBookingId(5L))
+                .thenReturn(Optional.of(PaymentStatus.PENDING));
+
+        PaymentStatusResponseDTO response =
+                paymentService.getPaymentStatus(5L, 2L);
+
+        assertAll(
+                () -> assertEquals(5L, response.getBookingId()),
+                () -> assertEquals(
+                        BookingStatus.PENDING_PAYMENT,
+                        response.getBookingStatus()
+                ),
+                () -> assertEquals(
+                        PaymentStatus.PENDING,
+                        response.getPaymentStatus()
+                )
+        );
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnNullWhenPaymentDoesNotExist() {
+        Booking booking = validPendingBooking();
+
+        when(bookingRepository.findByIdAndUserId(5L, 2L))
+                .thenReturn(Optional.of(booking));
+
+        when(paymentRepository.findStatusByBookingId(5L))
+                .thenReturn(Optional.empty());
+
+        PaymentStatusResponseDTO response =
+                paymentService.getPaymentStatus(5L, 2L);
+
+        assertEquals(5L, response.getBookingId());
+        assertEquals(
+                BookingStatus.PENDING_PAYMENT,
+                response.getBookingStatus()
+        );
+        assertNull(response.getPaymentStatus());
+    }
+
+    @Test
+    void getPaymentStatus_shouldRejectBookingThatDoesNotBelongToCustomer() {
+        when(bookingRepository.findByIdAndUserId(5L, 2L))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> paymentService.getPaymentStatus(5L, 2L)
+        );
+
+        assertEquals(
+                "Booking with ID 5 was not found",
+                exception.getMessage()
+        );
+
+        verify(paymentRepository, never())
+                .findStatusByBookingId(anyLong());
     }
 }

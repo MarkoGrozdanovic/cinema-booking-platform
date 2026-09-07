@@ -19,6 +19,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.cinemabooking.platform.model.enums.BookingStatus;
+import com.cinemabooking.platform.model.response.PaymentStatusResponseDTO;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -178,5 +182,71 @@ class PaymentControllerTest {
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
         );
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnStatusForCustomer()
+            throws Exception {
+        PaymentStatusResponseDTO response =
+                PaymentStatusResponseDTO.builder()
+                        .bookingId(5L)
+                        .bookingStatus(BookingStatus.CONFIRMED)
+                        .paymentStatus(PaymentStatus.SUCCEEDED)
+                        .build();
+
+        when(paymentService.getPaymentStatus(5L, 2L))
+                .thenReturn(response);
+
+        mockMvc.perform(get("/api/payments/bookings/5/status")
+                        .with(authentication(customerAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingId").value(5))
+                .andExpect(jsonPath("$.bookingStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.paymentStatus").value("SUCCEEDED"));
+
+        verify(paymentService).getPaymentStatus(5L, 2L);
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnNullWhenPaymentHasNotStarted()
+            throws Exception {
+        PaymentStatusResponseDTO response =
+                PaymentStatusResponseDTO.builder()
+                        .bookingId(5L)
+                        .bookingStatus(BookingStatus.PENDING_PAYMENT)
+                        .paymentStatus(null)
+                        .build();
+
+        when(paymentService.getPaymentStatus(5L, 2L))
+                .thenReturn(response);
+
+        mockMvc.perform(get("/api/payments/bookings/5/status")
+                        .with(authentication(customerAuthentication())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingId").value(5))
+                .andExpect(jsonPath("$.bookingStatus")
+                        .value("PENDING_PAYMENT"))
+                .andExpect(jsonPath("$.paymentStatus").doesNotExist());
+
+        verify(paymentService).getPaymentStatus(5L, 2L);
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnUnauthorizedWithoutAuthentication()
+            throws Exception {
+        mockMvc.perform(get("/api/payments/bookings/5/status"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void getPaymentStatus_shouldReturnForbiddenForAdmin()
+            throws Exception {
+        mockMvc.perform(get("/api/payments/bookings/5/status")
+                        .with(authentication(adminAuthentication())))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(paymentService);
     }
 }

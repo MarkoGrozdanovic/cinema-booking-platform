@@ -10,6 +10,7 @@ import com.cinemabooking.platform.model.ScreeningSeat;
 import com.cinemabooking.platform.model.enums.*;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
+import com.cinemabooking.platform.model.response.PaymentStatusResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.PaymentRepository;
 import com.cinemabooking.platform.service.PaymentService;
@@ -166,6 +167,32 @@ public class PaymentServiceImpl implements PaymentService {
                         .CancellationReason
                         .ABANDONED
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentStatusResponseDTO getPaymentStatus(
+            Long bookingId,
+            Long authenticatedUserId
+    ) {
+        Booking booking = bookingRepository
+                .findByIdAndUserId(
+                        bookingId,
+                        authenticatedUserId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Booking with ID " + bookingId + " was not found"
+                ));
+
+        PaymentStatus paymentStatus = paymentRepository
+                .findStatusByBookingId(bookingId)
+                .orElse(null);
+
+        return PaymentStatusResponseDTO.builder()
+                .bookingId(booking.getId())
+                .bookingStatus(booking.getStatus())
+                .paymentStatus(paymentStatus)
+                .build();
     }
 
     private PaymentCancellationOutcome cancelPaymentForBooking(

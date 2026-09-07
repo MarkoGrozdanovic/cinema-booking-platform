@@ -3,6 +3,7 @@ package com.cinemabooking.platform.service;
 import com.cinemabooking.platform.model.enums.PaymentCancellationOutcome;
 import com.cinemabooking.platform.model.request.CreatePaymentRequestDTO;
 import com.cinemabooking.platform.model.response.PaymentIntentResponseDTO;
+import com.cinemabooking.platform.model.response.PaymentStatusResponseDTO;
 
 public interface PaymentService {
     PaymentIntentResponseDTO createPaymentIntent(
@@ -20,5 +21,10 @@ public interface PaymentService {
 
     PaymentCancellationOutcome cancelExpiredBookingPayment(
             Long bookingId
+    );
+
+    PaymentStatusResponseDTO getPaymentStatus(
+            Long bookingId,
+            Long authenticatedUserId
     );
 }

@@ -12,6 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.cinemabooking.platform.model.response.PaymentStatusResponseDTO;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Tag(
         name = "Payments",
@@ -52,6 +55,20 @@ public class PaymentController {
         );
 
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/bookings/{bookingId}/status")
+    public ResponseEntity<PaymentStatusResponseDTO> getPaymentStatus(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal AppUser userDetails
+    ) {
+        PaymentStatusResponseDTO response =
+                paymentService.getPaymentStatus(
+                        bookingId,
+                        userDetails.getId()
+                );
+
+        return ResponseEntity.ok(response);
     }
 
 }

@@ -101,6 +101,12 @@ public class SecurityConfig {
                                 )
                                 .hasRole("CUSTOMER")
 
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/payments/bookings/*/status"
+                                )
+                                .hasRole("CUSTOMER")
+
                                 .anyRequest()
                                 .authenticated()
                 )

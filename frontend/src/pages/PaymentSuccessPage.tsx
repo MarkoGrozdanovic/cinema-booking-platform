@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { getBookingById } from "../api/bookingApi";
+import { getPaymentStatus } from "../api/paymentApi";
 
 type ConfirmationState = "checking" | "confirmed" | "pending" | "failed";
 
@@ -15,7 +15,7 @@ function PaymentSuccessPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function checkBookingStatus() {
+    async function checkPaymentStatus() {
       if (!Number.isInteger(bookingId) || bookingId <= 0) {
         setConfirmationState("failed");
         return;
@@ -23,21 +23,25 @@ function PaymentSuccessPage() {
 
       for (let attempt = 0; attempt < 10; attempt += 1) {
         try {
-          const booking = await getBookingById(bookingId);
+          const status = await getPaymentStatus(bookingId);
 
           if (cancelled) {
             return;
           }
 
-          if (booking.status === "CONFIRMED") {
+          if (
+            status.bookingStatus === "CONFIRMED" &&
+            status.paymentStatus === "SUCCEEDED"
+          ) {
             setConfirmationState("confirmed");
             return;
           }
 
           if (
-            booking.status === "CANCELLED" ||
-            booking.status === "EXPIRED" ||
-            booking.status === "PAYMENT_FAILED"
+            status.bookingStatus === "CANCELLED" ||
+            status.bookingStatus === "EXPIRED" ||
+            status.paymentStatus === "CANCELLED" ||
+            status.paymentStatus === "FAILED"
           ) {
             setConfirmationState("failed");
             return;
@@ -50,7 +54,9 @@ function PaymentSuccessPage() {
           return;
         }
 
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 1500);
+        });
       }
 
       if (!cancelled) {
@@ -58,7 +64,7 @@ function PaymentSuccessPage() {
       }
     }
 
-    void checkBookingStatus();
+    void checkPaymentStatus();
 
     return () => {
       cancelled = true;
@@ -114,8 +120,8 @@ function PaymentSuccessPage() {
             </h1>
 
             <p className="mt-4 text-slate-300">
-              We could not confirm the booking status. Please check your
-              bookings before trying another payment.
+              The payment was not completed. Check your bookings before trying
+              another payment.
             </p>
           </>
         )}
