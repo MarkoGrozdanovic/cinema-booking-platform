@@ -16,8 +16,8 @@ import com.cinemabooking.platform.repositories.*;
 import com.cinemabooking.platform.service.ScreeningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

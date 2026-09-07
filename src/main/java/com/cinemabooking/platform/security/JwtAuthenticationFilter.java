@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+@Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -52,17 +54,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (SecurityContextHolder.getContext()
                     .getAuthentication() == null) {
 
-                userRepository
+                AppUser user = userRepository
                         .findByEmailIgnoreCaseAndActiveTrue(email)
-                        .filter(user ->
-                                jwtService.isTokenValid(token, user)
-                        )
-                        .ifPresent(user ->
-                                authenticateUser(user, request)
-                        );
+                        .orElse(null);
+
+                if (user == null) {
+                    log.warn(
+                            "JWT authentication failed: active user not found for email={}",
+                            email
+                    );
+                } else if (!jwtService.isTokenValid(token, user)) {
+                    log.warn(
+                            "JWT authentication failed: token validation returned false for email={}",
+                            email
+                    );
+                } else {
+                    authenticateUser(user, request);
+
+                    log.debug(
+                            "JWT authentication succeeded: email={}, role={}",
+                            email,
+                            user.getRole()
+                    );
+                }
             }
-        } catch (JwtException | IllegalArgumentException ignored) {
-            // Invalid tokens remain unauthenticated.
+        } catch (JwtException | IllegalArgumentException exception) {
+            log.warn(
+                    "JWT authentication failed for path {}: {}",
+                    request.getRequestURI(),
+                    exception.getMessage()
+            );
         }
 
         filterChain.doFilter(request, response);

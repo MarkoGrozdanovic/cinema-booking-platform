@@ -1,9 +1,11 @@
 package com.cinemabooking.platform.service;
 
-import com.cinemabooking.platform.model.AppUser;
+import com.cinemabooking.platform.model.enums.BookingStatus;
+import com.cinemabooking.platform.model.enums.PaymentStatus;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
 import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
+import com.cinemabooking.platform.model.response.PageResponseDTO;
 
 import java.util.List;
 
@@ -21,5 +23,12 @@ public interface BookingService {
 
     void expirePendingBooking(Long bookingId);
 
-    List<AdminBookingResponseDTO> getAllBookingsForAdmin();
+    PageResponseDTO<AdminBookingResponseDTO> getAllBookingsForAdmin(
+            int page,
+            int size,
+            String search,
+            BookingStatus bookingStatus,
+            PaymentStatus paymentStatus,
+            boolean paymentNotStarted
+    );
 }

@@ -18,8 +18,6 @@ import com.cinemabooking.platform.repositories.PaymentRepository;
 import com.cinemabooking.platform.service.PaymentService;
 import com.stripe.Stripe;
 import com.stripe.StripeClient;
-import java.util.Locale;
-
 import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
@@ -30,12 +28,14 @@ import com.stripe.model.StripeObject;
 import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCancelParams;
+import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.stripe.param.PaymentIntentCreateParams;
+
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Objects;
 
 @Slf4j

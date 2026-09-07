@@ -3,6 +3,7 @@ package com.cinemabooking.platform.controllers;
 import com.cinemabooking.platform.model.enums.BookingStatus;
 import com.cinemabooking.platform.model.enums.PaymentStatus;
 import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
+import com.cinemabooking.platform.model.response.PageResponseDTO;
 import com.cinemabooking.platform.service.BookingService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,20 +46,54 @@ class AdminBookingControllerTest {
                         .totalPrice(new BigDecimal("1400.00"))
                         .build();
 
-        when(bookingService.getAllBookingsForAdmin())
-                .thenReturn(List.of(booking));
+        PageResponseDTO<AdminBookingResponseDTO> pageResponse =
+                PageResponseDTO.<AdminBookingResponseDTO>builder()
+                        .content(List.of(booking))
+                        .page(0)
+                        .size(20)
+                        .totalElements(1)
+                        .totalPages(1)
+                        .first(true)
+                        .last(true)
+                        .build();
 
-        ResponseEntity<List<AdminBookingResponseDTO>> response =
-                controller.getAllBookings();
+        when(bookingService.getAllBookingsForAdmin(
+                0,
+                20,
+                "marko",
+                BookingStatus.CONFIRMED,
+                PaymentStatus.SUCCEEDED,
+                false
+        )).thenReturn(pageResponse);
+
+        ResponseEntity<PageResponseDTO<AdminBookingResponseDTO>> response =
+                controller.getAllBookings(
+                        0,
+                        20,
+                        "marko",
+                        BookingStatus.CONFIRMED,
+                        PaymentStatus.SUCCEEDED,
+                        false
+                );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
+        assertEquals(1, response.getBody().getContent().size());
         assertEquals(
                 "BOOKING-001",
-                response.getBody().get(0).getBookingReference()
+                response.getBody()
+                        .getContent()
+                        .get(0)
+                        .getBookingReference()
         );
 
-        verify(bookingService).getAllBookingsForAdmin();
+        verify(bookingService).getAllBookingsForAdmin(
+                0,
+                20,
+                "marko",
+                BookingStatus.CONFIRMED,
+                PaymentStatus.SUCCEEDED,
+                false
+        );
     }
 }

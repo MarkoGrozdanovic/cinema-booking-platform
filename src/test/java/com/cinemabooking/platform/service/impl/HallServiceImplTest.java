@@ -6,6 +6,7 @@ import com.cinemabooking.platform.model.Cinema;
 import com.cinemabooking.platform.model.Hall;
 import com.cinemabooking.platform.model.Seat;
 import com.cinemabooking.platform.model.enums.HallType;
+import com.cinemabooking.platform.model.enums.ScreeningStatus;
 import com.cinemabooking.platform.model.enums.SeatType;
 import com.cinemabooking.platform.model.request.CreateHallRequestDTO;
 import com.cinemabooking.platform.model.request.CreateSeatRowRequestDTO;
@@ -20,23 +21,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.eq;
-import com.cinemabooking.platform.model.enums.ScreeningStatus;
-
-import java.time.LocalDateTime;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class HallServiceImplTest {

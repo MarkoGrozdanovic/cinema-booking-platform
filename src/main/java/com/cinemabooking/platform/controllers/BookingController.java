@@ -1,5 +1,6 @@
 package com.cinemabooking.platform.controllers;
 
+import com.cinemabooking.platform.model.AppUser;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
 import com.cinemabooking.platform.service.BookingService;
@@ -7,9 +8,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import com.cinemabooking.platform.model.AppUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 

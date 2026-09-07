@@ -6,6 +6,7 @@ import com.cinemabooking.platform.model.enums.*;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
 import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
+import com.cinemabooking.platform.model.response.PageResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
@@ -13,9 +14,13 @@ import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -910,7 +915,7 @@ public class BookingServiceImplTest {
     }
 
     @Test
-    void getAllBookingsForAdmin_shouldReturnRepositoryResults() {
+    void getAllBookingsForAdmin_shouldReturnPaginatedFilteredResults() {
         AdminBookingResponseDTO booking =
                 AdminBookingResponseDTO.builder()
                         .id(1L)
@@ -922,16 +927,84 @@ public class BookingServiceImplTest {
                         .totalPrice(new BigDecimal("1400.00"))
                         .build();
 
-        when(bookingRepository.findAllAdminBookingResponses())
-                .thenReturn(List.of(booking));
+        Page<AdminBookingResponseDTO> repositoryPage =
+                new PageImpl<>(List.of(booking));
 
-        List<AdminBookingResponseDTO> response =
-                bookingService.getAllBookingsForAdmin();
+        when(bookingRepository.findAllAdminBookingResponses(
+                eq("marko"),
+                eq(BookingStatus.CONFIRMED),
+                eq(PaymentStatus.SUCCEEDED),
+                eq(false),
+                any(Pageable.class)
+        )).thenReturn(repositoryPage);
 
-        assertEquals(1, response.size());
-        assertSame(booking, response.get(0));
+        PageResponseDTO<AdminBookingResponseDTO> response =
+                bookingService.getAllBookingsForAdmin(
+                        0,
+                        10,
+                        "  Marko  ",
+                        BookingStatus.CONFIRMED,
+                        PaymentStatus.SUCCEEDED,
+                        false
+                );
 
-        verify(bookingRepository)
-                .findAllAdminBookingResponses();
+        assertAll(
+                () -> assertEquals(1, response.getContent().size()),
+                () -> assertSame(booking, response.getContent().get(0)),
+                () -> assertEquals(0, response.getPage()),
+                () -> assertEquals(1, response.getTotalElements()),
+                () -> assertEquals(1, response.getTotalPages()),
+                () -> assertTrue(response.isFirst()),
+                () -> assertTrue(response.isLast())
+        );
+
+        ArgumentCaptor<Pageable> pageableCaptor =
+                ArgumentCaptor.forClass(Pageable.class);
+
+        verify(bookingRepository).findAllAdminBookingResponses(
+                eq("marko"),
+                eq(BookingStatus.CONFIRMED),
+                eq(PaymentStatus.SUCCEEDED),
+                eq(false),
+                pageableCaptor.capture()
+        );
+
+        Pageable pageable = pageableCaptor.getValue();
+
+        assertEquals(0, pageable.getPageNumber());
+        assertEquals(10, pageable.getPageSize());
+        assertTrue(pageable.getSort().getOrderFor("createdAt").isDescending());
+    }
+
+    @Test
+    void getAllBookingsForAdmin_shouldFilterBookingsWithoutPayment() {
+        when(bookingRepository.findAllAdminBookingResponses(
+                eq(""),
+                isNull(),
+                isNull(),
+                eq(true),
+                any(Pageable.class)
+        )).thenReturn(Page.empty());
+
+        PageResponseDTO<AdminBookingResponseDTO> response =
+                bookingService.getAllBookingsForAdmin(
+                        0,
+                        20,
+                        "   ",
+                        null,
+                        PaymentStatus.SUCCEEDED,
+                        true
+                );
+
+        assertTrue(response.getContent().isEmpty());
+        assertEquals(0, response.getTotalElements());
+
+        verify(bookingRepository).findAllAdminBookingResponses(
+                eq(""),
+                isNull(),
+                isNull(),
+                eq(true),
+                any(Pageable.class)
+        );
     }
 }

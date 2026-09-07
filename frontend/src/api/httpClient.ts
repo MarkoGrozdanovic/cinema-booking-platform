@@ -1,6 +1,7 @@
 import axios from "axios";
 import { store } from "../store/store";
 import { logout } from "../features/auth/authSlice";
+import { clearAuthSession } from "../features/auth/authStorage";
 
 const httpClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api",
@@ -28,6 +29,7 @@ httpClient.interceptors.response.use(
       error.response?.status === 401 &&
       store.getState().auth.user
     ) {
+      clearAuthSession();
       store.dispatch(logout());
     }
 

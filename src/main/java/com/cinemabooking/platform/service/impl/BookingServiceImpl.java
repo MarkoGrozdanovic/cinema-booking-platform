@@ -3,14 +3,12 @@ package com.cinemabooking.platform.service.impl;
 import com.cinemabooking.platform.config.AppConstants;
 import com.cinemabooking.platform.exceptions.*;
 import com.cinemabooking.platform.model.*;
-import com.cinemabooking.platform.model.enums.AppRole;
-import com.cinemabooking.platform.model.enums.BookingStatus;
-import com.cinemabooking.platform.model.enums.ScreeningSeatStatus;
-import com.cinemabooking.platform.model.enums.ScreeningStatus;
+import com.cinemabooking.platform.model.enums.*;
 import com.cinemabooking.platform.model.request.CreateBookingRequestDTO;
 import com.cinemabooking.platform.model.response.AdminBookingResponseDTO;
 import com.cinemabooking.platform.model.response.BookedSeatResponseDTO;
 import com.cinemabooking.platform.model.response.BookingResponseDTO;
+import com.cinemabooking.platform.model.response.PageResponseDTO;
 import com.cinemabooking.platform.repositories.BookingRepository;
 import com.cinemabooking.platform.repositories.ScreeningRepository;
 import com.cinemabooking.platform.repositories.ScreeningSeatRepository;
@@ -18,8 +16,12 @@ import com.cinemabooking.platform.repositories.UserRepository;
 import com.cinemabooking.platform.service.BookingService;
 import com.cinemabooking.platform.service.PaymentService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -156,9 +158,52 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AdminBookingResponseDTO> getAllBookingsForAdmin() {
-        return bookingRepository.findAllAdminBookingResponses();
+    public PageResponseDTO<AdminBookingResponseDTO> getAllBookingsForAdmin(
+            int page,
+            int size,
+            String search,
+            BookingStatus bookingStatus,
+            PaymentStatus paymentStatus,
+            boolean paymentNotStarted
+    ) {
+        String normalizedSearch =
+                search == null
+                        ? ""
+                        : search.trim().toLowerCase();
+
+        PaymentStatus effectivePaymentStatus =
+                paymentNotStarted ? null : paymentStatus;
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "createdAt"
+                )
+        );
+
+        Page<AdminBookingResponseDTO> result =
+                bookingRepository.findAllAdminBookingResponses(
+                        normalizedSearch,
+                        bookingStatus,
+                        effectivePaymentStatus,
+                        paymentNotStarted,
+                        pageable
+                );
+
+        return PageResponseDTO
+                .<AdminBookingResponseDTO>builder()
+                .content(result.getContent())
+                .page(result.getNumber())
+                .size(result.getSize())
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .first(result.isFirst())
+                .last(result.isLast())
+                .build();
     }
+
 
     private void releaseHeldSeats(Booking booking) {
         for (BookingItem bookingItem : booking.getBookingItems()) {
